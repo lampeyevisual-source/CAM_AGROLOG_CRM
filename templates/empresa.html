@@ -1,0 +1,437 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha da empresa | CAM AGROLOG CRM</title>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 24px auto;
+            padding: 0 16px;
+            max-width: 1200px;
+            background: #f4f6f8;
+            color: #202833;
+        }
+
+        a { color: #176b4d; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .voltar { display: inline-block; margin-bottom: 20px; }
+
+        header {
+            background: #174b37;
+            color: white;
+            padding: 24px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        header h1 { margin: 0 0 8px; font-size: 25px; }
+        header p { margin: 5px 0; overflow-wrap: anywhere; }
+
+        .grupo {
+            background: white;
+            border-radius: 9px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .grupo h2 {
+            font-size: 18px;
+            margin: 0 0 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e4e8eb;
+        }
+
+        .campos {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px 24px;
+        }
+
+        .campo { min-width: 0; }
+
+        dt {
+            color: #687480;
+            font-size: 12px;
+            margin-bottom: 5px;
+            overflow-wrap: anywhere;
+        }
+
+        dd {
+            margin: 0;
+            font-size: 14px;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+
+        .vazio { color: #9aa2aa; }
+
+        .formulario {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .form-campo {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-campo label {
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #ccd2d8;
+            border-radius: 6px;
+            background: white;
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .largura-total { grid-column: 1 / -1; }
+
+        .botao {
+        display: inline-block;
+        padding: 12px 16px;
+        background: #174b37;
+        color: white;
+        border: 0;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        text-decoration: none;
+        font-family: Arial, sans-serif;
+    }
+
+        .botao:hover {
+            background: #226b4d;
+            color: white;
+            text-decoration: none;
+        }
+
+        .acoes {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        @media (max-width: 650px) {
+            body { margin-top: 16px; }
+            .campos, .formulario { grid-template-columns: 1fr; }
+            header { padding: 18px; }
+            .largura-total { grid-column: auto; }
+        }
+    </style>
+</head>
+
+<body>
+    <a class="voltar" href="{{ url_for('inicio') }}">
+        ← Voltar para empresas
+    </a>
+    
+    {% set telefone1 = (empresa.get('ddd_1', '') ~ empresa.get('telefone_1', ''))|replace('+55', '')|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '')|replace('.', '') %}
+    {% set telefone2 = (empresa.get('ddd_2', '') ~ empresa.get('telefone_2', ''))|replace('+55', '')|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '')|replace('.', '') %}
+
+    {% set endereco = [
+        empresa.get('tipo_logradouro', ''),
+        empresa.get('logradouro', ''),
+        empresa.get('numero', ''),
+        empresa.get('complemento', ''),
+        empresa.get('bairro', ''),
+        empresa.get('cep', ''),
+        empresa.get('codigo_municipio', ''),
+        empresa.get('uf', ''),
+        'Brasil'
+    ]|reject('equalto', '')|join(', ') %}
+
+    {% set pesquisa_google = [
+        empresa.get('razao_social', ''),
+        empresa.get('nome_fantasia', ''),
+        empresa.get('nome_socio', ''),
+        empresa.get('nome_representante_legal', '')
+    ]|reject('equalto', '')|join(' ') %}
+
+    <section class="grupo">
+        <h2>Ações rápidas</h2>
+
+        <div class="acoes">
+            {% if telefone1 %}
+                <a class="botao" href="tel:+55{{ telefone1 }}">
+                    ☎ Ligar — telefone 1
+                </a>
+
+                <a
+                    class="botao"
+                    href="https://wa.me/55{{ telefone1 }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    WhatsApp — telefone 1
+                </a>
+            {% endif %}
+
+            {% if telefone2 %}
+                <a class="botao" href="tel:+55{{ telefone2 }}">
+                    ☎ Ligar — telefone 2
+                </a>
+
+                <a
+                    class="botao"
+                    href="https://wa.me/55{{ telefone2 }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    WhatsApp — telefone 2
+                </a>
+            {% endif %}
+
+            <a
+                class="botao"
+                href="https://www.google.com/search?q={{ pesquisa_google|urlencode }}"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                🔎 Pesquisar empresa
+            </a>
+
+            <a
+                class="botao"
+                href="https://www.google.com/maps/search/?api=1&query={{ endereco|urlencode }}"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                📍 Ver no Google Maps
+            </a>
+
+            <button
+                class="botao"
+                type="button"
+                onclick="copiarDados(this)"
+                data-dados="{{ ('Razão social: ' ~ empresa.get('razao_social', '') ~ '\nNome fantasia: ' ~ empresa.get('nome_fantasia', '') ~ '\nCNPJ: ' ~ empresa.get('cnpj', '') ~ '\nSócios: ' ~ empresa.get('nome_socio', '') ~ '\nEndereço: ' ~ endereco)|e }}"
+            >
+                📋 Copiar dados da empresa
+            </button>
+        </div>
+
+        {% if not telefone1 and not telefone2 %}
+            <p class="vazio">
+                Nenhum telefone válido encontrado nos campos de telefone.
+            </p>
+        {% endif %}
+    </section>
+
+    <script>
+        async function copiarDados(botao) {
+            const texto = botao.dataset.dados;
+
+            try {
+                await navigator.clipboard.writeText(texto);
+                botao.textContent = "Dados copiados!";
+            } catch (erro) {
+                const campo = document.createElement("textarea");
+                campo.value = texto;
+                document.body.appendChild(campo);
+                campo.select();
+
+                const copiou = document.execCommand("copy");
+                campo.remove();
+
+                botao.textContent = copiou
+                    ? "Dados copiados!"
+                    : "Não foi possível copiar";
+            }
+
+            setTimeout(() => {
+                botao.textContent = "📋 Copiar dados da empresa";
+            }, 2000);
+        }
+    </script>
+
+    <header>
+        <h1>
+            {{ empresa.get('razao_social', '') or empresa.get('nome_fantasia', '') or 'Empresa sem nome' }}
+        </h1>
+
+        <p>CNPJ: {{ empresa.get('cnpj', '—') }}</p>
+
+        <p>
+            {{ empresa.get('situacao_cadastral', 'Situação não informada') }}
+            · {{ empresa.get('codigo_municipio', '') }}
+            {% if empresa.get('uf') %}/ {{ empresa.get('uf') }}{% endif %}
+        </p>
+    </header>
+
+    {% with mensagens = get_flashed_messages() %}
+        {% for mensagem in mensagens %}
+            <div class="mensagem">{{ mensagem }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    <section class="grupo">
+        <h2>Acompanhamento comercial</h2>
+
+        <form
+            action="{{ url_for('salvar_empresa', cnpj=empresa.get('cnpj', '')) }}"
+            method="post"
+        >
+            <div class="formulario">
+
+                <div class="form-campo">
+                    <label for="status_comercial">Status comercial</label>
+                    <select id="status_comercial" name="status_comercial">
+                        {% for opcao in [
+                            'Novo contato',
+                            'Contato realizado',
+                            'Em negociação',
+                            'Cliente ativo',
+                            'Sem interesse',
+                            'Retornar depois'
+                        ] %}
+                        <option
+                            value="{{ opcao }}"
+                            {% if acompanhamento.get('status_comercial', 'Novo contato') == opcao %}selected{% endif %}
+                        >
+                            {{ opcao }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-campo">
+                    <label for="ultimo_contato">Data do último contato</label>
+                    <input
+                        type="date"
+                        id="ultimo_contato"
+                        name="ultimo_contato"
+                        value="{{ acompanhamento.get('ultimo_contato', '') }}"
+                    >
+                </div>
+
+                <div class="form-campo">
+                    <label for="resultado_contato">Resultado do contato</label>
+                    <select id="resultado_contato" name="resultado_contato">
+                        {% for opcao in [
+                            '',
+                            'Não atendeu',
+                            'Falou com responsável',
+                            'Pediu orçamento',
+                            'Demonstrou interesse',
+                            'Sem interesse',
+                            'Precisa retornar',
+                            'Venda realizada'
+                        ] %}
+                        <option
+                            value="{{ opcao }}"
+                            {% if acompanhamento.get('resultado_contato', '') == opcao %}selected{% endif %}
+                        >
+                            {{ opcao if opcao else 'Selecione' }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-campo">
+                    <label for="visitou">Visitou a empresa?</label>
+                    <select id="visitou" name="visitou">
+                        {% for opcao in ['', 'Sim', 'Não'] %}
+                        <option
+                            value="{{ opcao }}"
+                            {% if acompanhamento.get('visitou', '') == opcao %}selected{% endif %}
+                        >
+                            {{ opcao if opcao else 'Selecione' }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-campo">
+                    <label for="ultima_compra">Data da última compra</label>
+                    <input
+                        type="date"
+                        id="ultima_compra"
+                        name="ultima_compra"
+                        value="{{ acompanhamento.get('ultima_compra', '') }}"
+                    >
+                </div>
+
+                <div class="form-campo">
+                    <label for="valor_ultima_compra">Valor da última compra (R$)</label>
+                    <input
+                        type="number"
+                        id="valor_ultima_compra"
+                        name="valor_ultima_compra"
+                        min="0"
+                        step="0.01"
+                        placeholder="0,00"
+                        value="{{ acompanhamento.get('valor_ultima_compra', '') }}"
+                    >
+                </div>
+
+                <div class="form-campo">
+                    <label for="proximo_retorno">Próximo retorno</label>
+                    <input
+                        type="date"
+                        id="proximo_retorno"
+                        name="proximo_retorno"
+                        value="{{ acompanhamento.get('proximo_retorno', '') }}"
+                    >
+                </div>
+
+                <div class="form-campo largura-total">
+                    <label for="observacoes">Observações comerciais</label>
+                    <textarea
+                        id="observacoes"
+                        name="observacoes"
+                        placeholder="Ex.: Comprava de outro fornecedor, pediu tabela de preços..."
+                    >{{ acompanhamento.get('observacoes', '') }}</textarea>
+                </div>
+
+            </div>
+
+            <div class="acoes">
+                <button class="botao" type="submit">
+                    Salvar acompanhamento
+                </button>
+                <a class="botao" href="{{ url_for('inicio') }}">
+                    Voltar à listagem
+                </a>
+            </div>
+        </form>
+    </section>
+
+    {% for titulo, itens in grupos %}
+    <section class="grupo">
+        <h2>{{ titulo }}</h2>
+
+        <dl class="campos">
+            {% for campo, valor in itens %}
+            <div class="campo">
+                <dt>{{ campo }}</dt>
+                <dd class="{% if not valor %}vazio{% endif %}">
+                    {{ valor if valor else 'Não informado' }}
+                </dd>
+            </div>
+            {% endfor %}
+        </dl>
+    </section>
+    {% endfor %}
+
+</body>
+</html>
