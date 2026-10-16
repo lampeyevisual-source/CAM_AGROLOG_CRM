@@ -2,6 +2,7 @@ import csv
 import io
 import os
 import re
+import hashlib
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
@@ -191,6 +192,9 @@ def bases(area):
 @app.route("/bases/<area>/importar", methods=["POST"])
 @exigir_login
 def importar_base(area):
+    import hashlib
+    import io
+
     if area not in AREAS_CAM:
         flash("Área não encontrada.")
         return redirect(url_for("acessos"))
@@ -202,152 +206,152 @@ def importar_base(area):
         flash("Informe o nome da base e selecione um CSV.")
         return redirect(url_for("bases", area=area))
 
+    base_id = None
+    supabase = None
+
     try:
-        # 1. Ler o CSV usando a função que já existe
-        linhas = ler_csv_upload(arquivo)
-
-        # 2. Criar a pasta correspondente à área
-        pasta_bases = (
-            Path(__file__).resolve().parent
-            / "data"
-            / "bases"
-            / area
-        )
-        pasta_bases.mkdir(parents=True, exist_ok=True)
-
-        # 3. Preparar o nome do arquivo
         nome_arquivo = secure_filename(arquivo.filename)
 
         if not nome_arquivo:
-            raise ValueError("O nome do arquivo CSV é inválido.")
+            raise ValueError("Nome de arquivo inválido.")
 
-        # 4. Evitar sobrescrever arquivos anteriores
-        destino = pasta_bases / nome_arquivo
-        contador = 1
+        # Lê o arquivo e calcula a assinatura do conteúdo.
+        conteudo_csv = arquivo.read()
+        checksum = hashlib.sha256(conteudo_csv).hexdigest()
 
-        while destino.exists():
-            destino = pasta_bases / (
-                f"{Path(nome_arquivo).stem}_{contador}"
-                f"{Path(nome_arquivo).suffix}"
-            )
-            contador += 1
+        if not conteudo_csv:
+            raise ValueError("O arquivo CSV está vazio.")
 
-        # 5. Salvar uma cópia do CSV original
-        arquivo.seek(0)
-        destino.write_bytes(arquivo.read())
+        # Lê o CSV antes de criar ou alterar a base.
+        linhas = ler_csv_upload(io.BytesIO(conteudo_csv))
 
-        # 6. Registrar a base no Supabase
+        if not linhas:
+            raise ValueError("O CSV não contém registros para importar.")
+
         supabase = cliente_supabase()
 
-        criada = (
+        # Procura o mesmo conteúdo na mesma área.
+        existente = (
             supabase.table("bases_csv")
-            .insert({
-                "area": area,
-                "nome": nome,
-                "arquivo_original": arquivo.filename,
-                "total_registros": len(linhas)
-            })
-            .execute()
-        )
-
-        if not criada.data:
-            raise RuntimeError("Não foi possível criar a base no Supabase.")
-
-        base_id = criada.data[0]["id"]
-
-        # 7. Importar os registros em lotes de 100
-        lote = []
-
-        for dados in linhas:
-            lote.append({
-                "base_id": base_id,
-                "identificador": identificar_registro(dados),
-                "dados": dados
-            })
-
-        for inicio_lote in range(0, len(lote), 100):
-            supabase.table("base_registros").insert(
-                lote[inicio_lote:inicio_lote + 100]
-            ).execute()
-
-        flash(
-            f"Base importada: {len(linhas)} registros. "
-            f"CSV salvo em data/bases/{area}/."
-        )
-
-    except Exception as erro:
-        flash(f"Erro ao importar CSV: {erro}")
-
-    return redirect(url_for("bases", area=area))
-
-@app.route("/base/<base_id>")
-@exigir_login
-def base_detalhe(base_id):
-    try:
-        supabase = cliente_supabase()
-
-        resultado_base = (
-            supabase.table("bases_csv")
-            .select("*")
-            .eq("id", base_id)
+            .select("id,nome,status_importacao")
+            .eq("area", area)
+            .eq("checksum_csv", checksum)
             .limit(1)
             .execute()
         )
 
-        if not resultado_base.data:
-            flash("Base não encontrada.")
-            return redirect(url_for("acessos"))
+        if existente.data:
+            base = existente.data[0]
+            base_id = base["id"]
 
-        base = resultado_base.data[0]
+            if base.get("status_importacao") == "concluida":
+                flash(
+                    f"Este CSV já foi importado. "
+                    f"Base existente: {base['nome']}."
+                )
+                return redirect(url_for("bases", area=area))
 
-        resultado = (
-            supabase.table("base_registros")
-            .select("*")
-            .eq("base_id", base_id)
-            .order("id")
-            .limit(500)
-            .execute()
-        )
+            # A base existe, mas não foi concluída.
+            # Reinicia somente os registros vinculados a ela.
+            supabase.table("bases_csv").update({
+                "status_importacao": "em_andamento"
+            }).eq("id", base_id).execute()
 
-        registros = resultado.data or []
-        q = request.args.get("q", "").strip().lower()
+            supabase.table("base_registros") \
+                .delete() \
+                .eq("base_id", base_id) \
+                .execute()
 
-        if q:
-            registros = [
-                registro for registro in registros
-                if q in (
-                    str(registro.get("identificador", "")) + " " +
-                    " ".join(
-                        str(v)
-                        for v in (registro.get("dados") or {}).values()
-                    ) + " " +
-                    " ".join(
-                        str(registro.get(campo) or "")
-                        for campo in CAMPOS_COMERCIAIS
-                    )
-                ).lower()
+        else:
+            # Cria uma nova base.
+            criada = (
+                supabase.table("bases_csv")
+                .insert({
+                    "area": area,
+                    "nome": nome,
+                    "arquivo_original": arquivo.filename,
+                    "total_registros": len(linhas),
+                    "checksum_csv": checksum,
+                    "status_importacao": "em_andamento"
+                })
+                .execute()
+            )
+
+            if not criada.data:
+                raise RuntimeError(
+                    "Não foi possível cadastrar a base no Supabase."
+                )
+
+            base_id = criada.data[0]["id"]
+
+        # Guarda o CSV original no Supabase Storage.
+        caminho_storage = f"{area}/{base_id}/{nome_arquivo}"
+
+        try:
+            supabase.storage.from_("bases-csv").upload(
+                path=caminho_storage,
+                file=conteudo_csv,
+                file_options={
+                    "content-type": "text/csv",
+                    "upsert": "true"
+                }
+            )
+        except Exception:
+            # Tenta atualizar o arquivo caso ele já exista.
+            supabase.storage.from_("bases-csv").update(
+                path=caminho_storage,
+                file=conteudo_csv,
+                file_options={"content-type": "text/csv"}
+            )
+
+        # Importa em lotes de 200 registros.
+        for inicio in range(0, len(linhas), 200):
+            lote = [
+                {
+                    "base_id": base_id,
+                    "identificador": identificar_registro(dados),
+                    "dados": dados
+                }
+                for dados in linhas[inicio:inicio + 200]
             ]
 
-        colunas = []
+            if lote:
+                (
+                    supabase.table("base_registros")
+                    .insert(lote)
+                    .execute()
+                )
 
-        for registro in registros:
-            for chave in (registro.get("dados") or {}):
-                if chave not in colunas:
-                    colunas.append(chave)
+        # Marca como concluída somente após todos os lotes.
+        supabase.table("bases_csv").update({
+            "status_importacao": "concluida"
+        }).eq("id", base_id).execute()
 
-        colunas = colunas[:12]
-
-        return render_template(
-            "base_detalhe.html",
-            base=base,
-            registros=registros,
-            colunas=colunas,
-            areas=AREAS_CAM,
-            q=request.args.get("q", "")
+        flash(
+            f"Base importada com sucesso: {len(linhas)} registros."
         )
 
     except Exception as erro:
-        return f"Erro ao abrir a base: {erro}", 500
+        app.logger.exception("Erro ao importar base CSV")
+
+        if base_id and supabase:
+            try:
+                supabase.table("bases_csv").update({
+                    "status_importacao": "erro"
+                }).eq("id", base_id).execute()
+            except Exception:
+                app.logger.exception(
+                    "Não foi possível atualizar o status da base."
+                )
+
+        flash(
+            "A importação não foi concluída. "
+            "Confira os logs do Render antes de tentar novamente. "
+            f"Detalhe: {erro}"
+        )
+
+    return redirect(url_for("bases", area=area))
+
 
 @app.route("/base-registro/<int:registro_id>", methods=["GET", "POST"])
 @exigir_login
