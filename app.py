@@ -353,7 +353,7 @@ def importar_base(area):
     return redirect(url_for("bases", area=area))
 
 
-@app.route("/base-detalhe/<int:base_id>")
+@app.route("/base-detalhe/<string:base_id>")
 @exigir_login
 def base_detalhe(base_id):
     try:
