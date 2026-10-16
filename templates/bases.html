@@ -1,0 +1,77 @@
+
+<!doctype html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bases | {{ area.nome }}</title>
+    <style>
+        body{font-family:Arial;background:#f3f5f4;margin:0;padding:20px;color:#222}
+        main{max-width:1000px;margin:auto}
+        .card{background:white;padding:20px;border-radius:8px;margin:16px 0}
+        input,button,a.botao{padding:11px;margin:5px 0}
+        button,a.botao{background:#176b3a;color:white;border:0;
+            border-radius:4px;text-decoration:none;cursor:pointer;display:inline-block}
+        a.voltar{color:#176b3a}
+        table{width:100%;border-collapse:collapse}
+        th,td{text-align:left;padding:10px;border-bottom:1px solid #ddd}
+        .tabela{overflow-x:auto}
+        .flash{background:#e3f4e7;padding:10px;margin:10px 0}
+    </style>
+</head>
+<body>
+<main>
+    <a class="voltar" href="{{ url_for('acessos') }}">← Voltar às áreas</a>
+    <h1>{{ area.nome }}</h1>
+    <p>{{ area.descricao }}</p>
+
+    {% with mensagens = get_flashed_messages() %}
+      {% for mensagem in mensagens %}
+        <div class="flash">{{ mensagem }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <section class="card">
+        <h2>Importar nova base CSV</h2>
+        <form method="post"
+              action="{{ url_for('importar_base', area=chave_area) }}"
+              enctype="multipart/form-data">
+            <label>Nome da base</label><br>
+            <input name="nome" placeholder="Ex.: Clientes de Salvador"
+                   required style="width:min(400px,90%)"><br>
+            <label>Arquivo CSV</label><br>
+            <input type="file" name="arquivo" accept=".csv,.txt"
+                   required><br>
+            <button type="submit">Importar base</button>
+        </form>
+        <p>As colunas originais do arquivo serão preservadas.
+           Não é obrigatório ter uma coluna CNPJ.</p>
+    </section>
+
+    <section class="card">
+        <h2>Bases importadas ({{ lista_bases|length }})</h2>
+        <div class="tabela">
+        <table>
+            <thead>
+                <tr><th>Nome</th><th>Registros</th><th>Data</th><th>Ação</th></tr>
+            </thead>
+            <tbody>
+            {% for base in lista_bases %}
+                <tr>
+                    <td>{{ base.nome }}</td>
+                    <td>{{ base.total_registros }}</td>
+                    <td>{{ base.criado_em }}</td>
+                    <td><a href="{{ url_for('base_detalhe', base_id=base.id) }}">Abrir base</a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="4">Nenhuma base importada nesta área.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </section>
+
+    <a class="botao" href="{{ url_for('inicio') }}">Abrir CRM antigo</a>
+</main>
+</body>
+</html>

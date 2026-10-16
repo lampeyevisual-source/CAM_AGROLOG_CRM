@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupo CAM | Áreas de Gestão</title>
+
+    <style>
+        :root {
+            --fundo: #f4f6f8;
+            --texto: #17212b;
+            --texto-suave: #687482;
+            --borda: #e2e7ec;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--fundo);
+            color: var(--texto);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .pagina {
+            width: min(1080px, calc(100% - 32px));
+            margin: auto;
+            padding: 42px 0;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 48px;
+        }
+
+        .marca {
+            color: #246b45;
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 2px;
+        }
+
+        .subtitulo {
+            color: var(--texto-suave);
+            font-size: 13px;
+        }
+
+        h1 {
+            margin: 0 0 10px;
+            font-size: clamp(28px, 4vw, 40px);
+        }
+
+        .introducao {
+            margin: 0 0 28px;
+            color: var(--texto-suave);
+            line-height: 1.6;
+        }
+
+        .grade {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .area {
+            display: flex;
+            flex-direction: column;
+            min-height: 255px;
+            padding: 25px;
+            background: white;
+            border: 1px solid var(--borda);
+            border-radius: 16px;
+            box-shadow: 0 5px 18px rgba(20, 35, 50, 0.04);
+        }
+
+        .icone {
+            display: grid;
+            place-items: center;
+            width: 52px;
+            height: 52px;
+            margin-bottom: 24px;
+            border-radius: 13px;
+            font-size: 25px;
+        }
+
+        .agrolog .icone {
+            background: #e7f4eb;
+        }
+
+        .distribuicao .icone {
+            background: #e8effb;
+        }
+
+        .logistica .icone {
+            background: #f0eafa;
+        }
+
+        h2 {
+            margin: 0 0 9px;
+            font-size: 20px;
+        }
+
+        .area p {
+            margin: 0 0 24px;
+            color: var(--texto-suave);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .botao {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            margin-top: auto;
+            padding: 12px 14px;
+            border: 1px solid var(--borda);
+            border-radius: 9px;
+            background: white;
+            color: var(--texto);
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .botao:hover {
+            background: #f8fafb;
+            border-color: #b9c4ce;
+        }
+
+        footer {
+            margin-top: 32px;
+            color: var(--texto-suave);
+            font-size: 12px;
+            text-align: center;
+        }
+
+        @media (max-width: 800px) {
+            .grade {
+                grid-template-columns: 1fr;
+            }
+
+            .area {
+                min-height: auto;
+            }
+
+            header {
+                margin-bottom: 34px;
+            }
+
+            .pagina {
+                padding-top: 30px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="pagina">
+
+        <header>
+            <div class="marca">GRUPO CAM</div>
+            <div class="subtitulo">Portal de gestão comercial</div>
+        </header>
+
+        <section>
+            <h1>Escolha uma área</h1>
+
+            <p class="introducao">
+                Selecione a área que deseja acessar para consultar
+                e organizar suas bases de clientes.
+            </p>
+        </section>
+
+        <section class="grade">
+
+            <!-- CAM AGROLOG -->
+            <article class="area agrolog">
+
+                <div class="icone">🌾</div>
+
+                <h2>CAM AGROLOG</h2>
+
+                <p>
+                    Compra e venda de grãos, como soja, milho,
+                    sorgo e outros produtos agrícolas.
+                </p>
+
+                <a class="botao"
+                   href="{{ url_for('bases', area='agrolog') }}">
+                    Acessar área
+                    <span>→</span>
+                </a>
+
+            </article>
+
+            <!-- CAM DISTRIBUIÇÃO -->
+            <article class="area distribuicao">
+
+                <div class="icone">📦</div>
+
+                <h2>CAM DISTRIBUIÇÃO</h2>
+
+                <p>
+                    Gestão de clientes de ovos e outras mercadorias,
+                    como mercados, padarias e restaurantes.
+                </p>
+
+                <a class="botao"
+                   href="{{ url_for('bases', area='distribuicao') }}">
+                    Acessar área
+                    <span>→</span>
+                </a>
+
+            </article>
+
+            <!-- CAM AGROLOGÍSTICA -->
+            <article class="area logistica">
+
+                <div class="icone">🚚</div>
+
+                <h2>CAM AGROLOGÍSTICA</h2>
+
+                <p>
+                    Fretes, caminhoneiros, transportadoras
+                    e oportunidades de transporte.
+                </p>
+
+                <a class="botao"
+                   href="{{ url_for('bases', area='agrologistica') }}">
+                    Acessar área
+                    <span>→</span>
+                </a>
+
+            </article>
+
+        </section>
+
+        <footer>
+            Grupo CAM · Acesso interno
+        </footer>
+
+    </main>
+</body>
+</html>

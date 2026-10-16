@@ -1,0 +1,59 @@
+<!doctype html>
+        <html lang="pt-br">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>{{ base.nome }} | CAM CRM</title>
+            <style>
+                body{font-family:Arial;background:#f3f5f4;margin:0;padding:16px;color:#222}
+                main{max-width:1200px;margin:auto}
+                .card{background:white;padding:16px;border-radius:8px;margin:16px 0}
+                input,button{padding:10px}
+                button{background:#176b3a;color:white;border:0;cursor:pointer}
+                .tabela{overflow-x:auto}
+                table{border-collapse:collapse;width:100%;background:white}
+                th,td{text-align:left;padding:9px;border-bottom:1px solid #ddd;font-size:13px}
+            </style>
+        </head>
+        <body>
+        <main>
+            <a href="{{ url_for('bases', area=base.area) }}">← Voltar às bases</a>
+            <h1>{{ base.nome }}</h1>
+            <p>Área: {{ areas[base.area].nome }}</p>
+            <p>Registros encontrados nesta consulta: {{ registros|length }}
+               (a tela carrega até 500 registros por vez).</p>
+
+            <section class="card">
+                <form method="get">
+                    <input name="q" value="{{ q }}" placeholder="Pesquisar nesta base">
+                    <button type="submit">Pesquisar</button>
+                </form>
+            </section>
+
+            <section class="card">
+                <div class="tabela">
+                <table>
+                    <thead><tr>
+                        {% for coluna in colunas %}<th>{{ coluna }}</th>{% endfor %}
+                        <th>Status comercial</th><th>Último contato</th><th>Ação</th>
+                    </tr></thead>
+                    <tbody>
+                    {% for registro in registros %}
+                        <tr>
+                            {% for coluna in colunas %}
+                                <td>{{ (registro.dados or {}).get(coluna, "") }}</td>
+                            {% endfor %}
+                            <td>{{ registro.status_comercial or "" }}</td>
+                            <td>{{ registro.ultimo_contato or "" }}</td>
+                            <td><a href="{{ url_for('registro_editar', registro_id=registro.id) }}">Editar</a></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="{{ colunas|length + 3 }}">Nenhum registro encontrado.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </section>
+        </main>
+        </body>
+        </html>
