@@ -353,6 +353,70 @@ def importar_base(area):
     return redirect(url_for("bases", area=area))
 
 
+@app.route("/base-detalhe/<int:base_id>")
+@exigir_login
+def base_detalhe(base_id):
+    try:
+        supabase = cliente_supabase()
+
+        # Busca a base selecionada.
+        resultado = (
+            supabase.table("bases_csv")
+            .select("*")
+            .eq("id", base_id)
+            .limit(1)
+            .execute()
+        )
+
+        if not resultado.data:
+            flash("Base não encontrada.")
+            return redirect(url_for("acessos"))
+
+        base = resultado.data[0]
+
+        # Busca os registros vinculados à base.
+        consulta = (
+            supabase.table("base_registros")
+            .select("*")
+            .eq("base_id", base_id)
+            .order("id")
+            .limit(500)
+        )
+
+        q = request.args.get("q", "").strip()
+
+        resposta = consulta.execute()
+        registros = resposta.data or []
+
+        # Pesquisa nos dados carregados.
+        if q:
+            termo = q.casefold()
+            registros = [
+                registro for registro in registros
+                if termo in str(registro.get("dados") or {}).casefold()
+            ]
+
+        # Descobre as colunas originais do CSV.
+        colunas = []
+        for registro in registros:
+            dados = registro.get("dados") or {}
+            for coluna in dados:
+                if coluna not in colunas:
+                    colunas.append(coluna)
+
+        return render_template(
+            "base_detalhe.html",
+            base=base,
+            areas=AREAS_CAM,
+            registros=registros,
+            colunas=colunas,
+            q=q
+        )
+
+    except Exception as erro:
+        app.logger.exception("Erro ao abrir detalhes da base")
+        return f"Erro ao abrir a base: {erro}", 500
+
 @app.route("/base-registro/<int:registro_id>", methods=["GET", "POST"])
 @exigir_login
 def registro_editar(registro_id):
