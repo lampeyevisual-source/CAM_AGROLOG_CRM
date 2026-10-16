@@ -86,20 +86,35 @@
         }
 
         /* Botão + da tabela */
-        .botao-detalhes {
-            width: 34px;
-            height: 34px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            border-radius: 50%;
-            font-size: 20px;
-            font-weight: 500;
-            background: #e7f4eb;
-            color: #176b3a;
-            border: 1px solid #c9e6d2;
-        }
+.botao-detalhes {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    box-sizing: border-box;
+    border-radius: 50%;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1;
+    background: #e7f4eb;
+    color: #176b3a !important;
+    border: 1px solid #c9e6d2;
+    text-decoration: none !important;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+a.botao-detalhes:visited,
+a.botao-detalhes:hover {
+    color: #176b3a !important;
+    text-decoration: none !important;
+}
+
+a.botao-detalhes:hover {
+    background: #d5ecdd;
+}   
 
         .botao-detalhes:hover {
             background: #176b3a;
@@ -393,19 +408,19 @@
 
                         <td>{{ dados.get('bairro', '') }}</td>
 
-                        <td>{{ dados.get('cep', '') }}</td>
+                       <td>{{ dados.get('cep', '') }}</td>
 
                         <td>{{ registro.status_comercial or '' }}</td>
 
                         <td>{{ registro.ultimo_contato or '' }}</td>
 
                         <td>
-                            <button
-                                type="button"
+                            <a
+                                href="{{ url_for('registro_editar', registro_id=registro.id) }}"
                                 class="botao-detalhes"
-                                onclick="alternarDetalhes('detalhes-{{ registro.id }}', this)">
+                                title="Editar cadastro comercial">
                                 +
-                            </button>
+                            </a>
                         </td>
                     </tr>
 
