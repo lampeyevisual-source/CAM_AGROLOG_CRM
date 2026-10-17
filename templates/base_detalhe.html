@@ -276,8 +276,11 @@ a.botao-detalhes:hover {
             <a href="{{ url_for('bases', area=base.area) }}">← Voltar às bases</a>
             <h1>{{ base.nome }}</h1>
             <p>Área: {{ areas[base.area].nome }}</p>
-            <p>Registros encontrados nesta consulta: {{ registros|length }}
-               (a tela carrega até 500 registros por vez).</p>
+            <p>
+            Registros nesta consulta: {{ registros|length }}.
+            Visíveis após filtros: <strong id="totalFiltrado">{{ registros|length }}</strong>.
+            A tela carrega até 500 registros por vez.
+            </p>
 
             <section class="card">
                 <form method="get">
@@ -416,55 +419,14 @@ a.botao-detalhes:hover {
 
                         <td>
                             <a
-                                href="{{ url_for('registro_editar', registro_id=registro.id) }}"
+                                href="{{ url_for('empresa_editar', cnpj=registro.dados.get('cnpj', registro.identificador or '')) }}"
                                 class="botao-detalhes"
-                                title="Editar cadastro comercial">
-                                +
+                                title="Abrir cadastro da empresa">
+                                + Abrir
                             </a>
                         </td>
                     </tr>
 
-                    <!-- Linha expansível com todos os dados -->
-                    <tr
-                        id="detalhes-{{ registro.id }}"
-                        class="linha-detalhes"
-                        style="display: none;">
-
-                        <td colspan="11">
-                            <h3>Dados completos da empresa</h3>
-
-                            <div class="dados-completos">
-                                {% for campo, valor in dados.items() %}
-                                    <div class="campo-detalhe">
-                                        <strong>{{ campo }}:</strong><br>
-                                        {{ valor if valor is not none else '' }}
-                                    </div>
-                                {% endfor %}
-
-                                <div class="campo-detalhe">
-                                    <strong>Status comercial:</strong><br>
-                                    {{ registro.status_comercial or '' }}
-                                </div>
-
-                                <div class="campo-detalhe">
-                                    <strong>Último contato:</strong><br>
-                                    {{ registro.ultimo_contato or '' }}
-                                </div>
-                            </div>
-
-                            <p>
-                                <a href="{{ url_for('registro_editar', registro_id=registro.id) }}">
-                                    Editar cadastro
-                                </a>
-                            </p>
-                        </td>
-                    </tr>
-
-                {% else %}
-                    <tr>
-                        <td colspan="11">Nenhum registro encontrado.</td>
-                    </tr>
-                {% endfor %}
             </tbody>
         </table>
     </div>
@@ -503,12 +465,146 @@ window.addEventListener("resize", ajustarBarraSuperior);
 ajustarBarraSuperior();
 
 
+
 const filtros = {
     ddd: document.getElementById("filtroDDD"),
     uf: document.getElementById("filtroUF"),
+    cidade: document.getElementById("filtroCidade"),
     bairro: document.getElementById("filtroBairro"),
     cep: document.getElementById("filtroCEP")
 };
+
+// Colunas da tabela: começam em zero.
+const colunas = {
+    ddd: 3,
+    uf: 4,
+    cidade: 5,
+    bairro: 6,
+    cep: 7
+};
+
+// Normaliza os valores para evitar opções vazias e duplicadas.
+function limparTexto(valor) {
+    return (valor || "").trim();
+}
+
+// Preenche cada filtro automaticamente com os dados da tabela.
+function preencherFiltros() {
+    const linhas = document.querySelectorAll(
+        "#tabelaContainer tbody tr:not(.linha-detalhes)"
+    );
+
+    Object.entries(filtros).forEach(([nome, select]) => {
+        const valores = new Set();
+
+        linhas.forEach(linha => {
+            if (linha.cells.length <= colunas[nome]) return;
+
+            const valor = limparTexto(
+                linha.cells[colunas[nome]].textContent
+            );
+
+            if (valor) valores.add(valor);
+        });
+
+        // Mantém a primeira opção ("Todos", "Todas" etc.).
+        const primeiraOpcao = select.options[0];
+        select.replaceChildren(primeiraOpcao);
+
+        [...valores]
+            .sort((a, b) => a.localeCompare(b, "pt-BR"))
+            .forEach(valor => {
+                const opcao = document.createElement("option");
+                opcao.value = valor;
+                opcao.textContent = valor;
+                select.appendChild(opcao);
+            });
+    });
+}
+
+// Retorna apenas os valores realmente selecionados.
+function valoresSelecionados(select) {
+    return Array.from(select.selectedOptions)
+        .map(opcao => opcao.value)
+        .filter(valor => valor !== "");
+}
+
+// Aplica todos os filtros simultaneamente.
+function aplicarFiltros() {
+    const selecionados = {};
+
+    Object.entries(filtros).forEach(([nome, select]) => {
+        selecionados[nome] = valoresSelecionados(select);
+    });
+
+    const linhas = document.querySelectorAll(
+        "#tabelaContainer tbody tr:not(.linha-detalhes)"
+    );
+
+    let totalVisivel = 0;
+
+    linhas.forEach(linha => {
+        // Ignora a linha "Nenhum registro encontrado".
+        if (linha.cells.length < 8) {
+            linha.style.display = "";
+            return;
+        }
+
+        const corresponde = Object.entries(selecionados).every(
+            ([nome, valores]) => {
+                if (valores.length === 0) return true;
+
+                const valorCelula = limparTexto(
+                    linha.cells[colunas[nome]].textContent
+                );
+
+                return valores.includes(valorCelula);
+            }
+        );
+
+        linha.style.display = corresponde ? "" : "none";
+
+        if (corresponde) totalVisivel++;
+
+        // Oculta os detalhes quando o cadastro não corresponde.
+        const detalhes = linha.nextElementSibling;
+
+        if (
+            detalhes &&
+            detalhes.classList.contains("linha-detalhes") &&
+            !corresponde
+        ) {
+            detalhes.style.display = "none";
+        }
+    });
+
+    // Atualiza o contador, sem alterar o texto original do servidor.
+    const contador = document.getElementById("totalFiltrado");
+
+    if (contador) {
+        contador.textContent = totalVisivel;
+    }
+}
+
+// Limpa as seleções e mostra novamente todos os registros carregados.
+function limparFiltros() {
+    Object.values(filtros).forEach(select => {
+        Array.from(select.options).forEach(opcao => {
+            opcao.selected = false;
+        });
+    });
+
+    aplicarFiltros();
+}
+
+// Atualiza a lista de opções quando a página termina de carregar.
+preencherFiltros();
+
+// Também permite filtrar automaticamente ao selecionar uma opção.
+Object.values(filtros).forEach(select => {
+    select.addEventListener("change", aplicarFiltros);
+});
+
 
 function valoresSelecionados(select) {
     return Array.from(select.selectedOptions)
