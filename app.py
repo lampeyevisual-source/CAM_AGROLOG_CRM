@@ -430,7 +430,6 @@ def base_detalhe(base_id):
         return f"Erro ao abrir a base: {erro}", 500
 
 @app.route("/base-registro/<int:registro_id>", methods=["GET", "POST"])
-@exigir_login
 def registro_editar(registro_id):
     try:
         supabase = cliente_supabase()

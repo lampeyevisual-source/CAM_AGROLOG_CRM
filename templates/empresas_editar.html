@@ -142,8 +142,8 @@
     </head>
 
     <body>
-        <a class="voltar" href="{{ url_for('inicio') }}">
-            ← Voltar para empresas
+        <a class="voltar" href="{{ url_for('base_detalhe', base_id=registro.base_id) }}">
+            Voltar para empresas
         </a>
         
         {% set telefone1 = (empresa.get('ddd_1', '') ~ empresa.get('telefone_1', ''))|replace('+55', '')|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '')|replace('.', '') %}
@@ -408,7 +408,7 @@
                     <button class="botao" type="submit">
                         Salvar acompanhamento
                     </button>
-                    <a class="botao" href="{{ url_for('inicio') }}">
+                    <a class="botao" href="{{ url_for('base_detalhe', base_id=registro.base_id) }}">
                         Voltar à listagem
                     </a>
                 </div>
