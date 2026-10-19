@@ -1,0 +1,74 @@
+
+    <!doctype html>
+    <html lang="pt-br">
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Editar empresa | CAM AGROLOG</title>
+    <style>
+    body{font-family:Arial;background:#f3f5f4;margin:0;padding:16px}
+    main{max-width:800px;margin:auto;background:white;padding:20px;border-radius:8px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+    input,select,textarea{width:100%;padding:10px;margin-top:5px;box-sizing:border-box}
+    button,.botao{display:inline-block;background:#176b3a;color:white;padding:11px;
+    border:0;text-decoration:none;border-radius:4px;margin-top:14px}
+    label{display:block}
+    </style>
+    </head>
+    <body>
+    <main>
+    <h2>Cadastro comercial</h2>
+    <p><a href="/">← Voltar para empresas</a></p>
+    {% with mensagens = get_flashed_messages() %}
+    {% for mensagem in mensagens %}<p>{{ mensagem }}</p>{% endfor %}
+    {% endwith %}
+    <p><strong>CNPJ:</strong> {{ empresa.get("cnpj", "") }}</p>
+    <p><strong>Razão social:</strong> {{ dados.get("razao_social", "") }}</p>
+    <p><strong>Nome fantasia:</strong> {{ dados.get("nome_fantasia", "") }}</p>
+    <p><strong>Telefone:</strong> {{ dados.get("CONTATO 1", dados.get("telefone_1", "")) }}</p>
+
+    <form method="post">
+    <div class="grid">
+    <label>Status comercial
+    <select name="status_comercial">
+    {% for opcao in ["Novo cliente","Prospectando","Em negociação","Cliente ativo","Sem interesse","Inativo"] %}
+    <option value="{{ opcao }}" {% if empresa.get("status_comercial") == opcao %}selected{% endif %}>{{ opcao }}</option>
+    {% endfor %}
+    </select></label>
+
+    <label>Último contato
+    <input type="date" name="ultimo_contato" value="{{ empresa.get('ultimo_contato') or '' }}">
+    </label>
+
+    <label>Resultado do contato
+    <input name="resultado_contato" value="{{ empresa.get('resultado_contato') or '' }}">
+    </label>
+
+    <label>Visitou?
+    <select name="visitou">
+    <option value="nao" {% if not empresa.get("visitou") %}selected{% endif %}>Não</option>
+    <option value="sim" {% if empresa.get("visitou") %}selected{% endif %}>Sim</option>
+    </select></label>
+
+    <label>Última compra
+    <input type="date" name="ultima_compra" value="{{ empresa.get('ultima_compra') or '' }}">
+    </label>
+
+    <label>Valor da última compra
+    <input name="valor_ultima_compra" placeholder="Ex.: 1500,00" value="{{ empresa.get('valor_ultima_compra') or '' }}">
+    </label>
+
+    <label>Próximo retorno
+    <input type="date" name="proximo_retorno" value="{{ empresa.get('proximo_retorno') or '' }}">
+    </label>
+    </div>
+
+    <label>Observações
+    <textarea name="observacoes" rows="5">{{ empresa.get("observacoes") or "" }}</textarea>
+    </label>
+
+    <button type="submit">Salvar alterações</button>
+    </form>
+    </main>
+    </body>
+    </html>

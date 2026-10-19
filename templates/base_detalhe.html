@@ -1,0 +1,669 @@
+<!doctype html>
+        <html lang="pt-br">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>{{ base.nome }} | CAM CRM</title>
+            
+        <style>
+        /* ===== VISUAL GERAL ===== */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            background: #f3f6f4;
+            margin: 0;
+            padding: 24px;
+            color: #24332a;
+            font-size: 14px;
+        }
+
+        main {
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+
+        h1, h2, h3 {
+            color: #183d29;
+            letter-spacing: -0.4px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 750;
+        }
+
+        h2 {
+            font-size: 19px;
+            margin-top: 0;
+        }
+
+        /* ===== CARTÕES ===== */
+        .card {
+            background: #ffffff;
+            padding: 22px;
+            border: 1px solid #e2e9e4;
+            border-radius: 16px;
+            margin: 18px 0;
+            box-shadow: 0 4px 16px rgba(22, 56, 35, 0.04);
+        }
+
+        /* ===== LINKS ===== */
+        a {
+            color: #197044;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        a:hover {
+            color: #104d2e;
+            text-decoration: underline;
+        }
+
+        /* ===== BOTÕES ===== */
+        button {
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 650;
+            padding: 11px 18px;
+            background: #176b3a;
+            color: #ffffff;
+            border: 1px solid #176b3a;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        button:hover {
+            background: #10552d;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        /* Botão + da tabela */
+.botao-detalhes {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    box-sizing: border-box;
+    border-radius: 50%;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1;
+    background: #e7f4eb;
+    color: #176b3a !important;
+    border: 1px solid #c9e6d2;
+    text-decoration: none !important;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+a.botao-detalhes:visited,
+a.botao-detalhes:hover {
+    color: #176b3a !important;
+    text-decoration: none !important;
+}
+
+a.botao-detalhes:hover {
+    background: #d5ecdd;
+}   
+
+        .botao-detalhes:hover {
+            background: #176b3a;
+            color: #ffffff;
+        }
+
+        /* ===== CAMPOS E PESQUISA ===== */
+        input, select, textarea {
+            font-family: inherit;
+            font-size: 14px;
+            color: #26382d;
+            background: #ffffff;
+            border: 1px solid #d8e2db;
+            border-radius: 10px;
+            padding: 11px 13px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: #23834b;
+            box-shadow: 0 0 0 3px rgba(35, 131, 75, 0.12);
+        }
+
+        /* ===== FILTROS ===== */
+        .painel-filtros {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+        }
+
+        .filtro {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filtro label {
+            font-size: 12px;
+            font-weight: 750;
+            color: #52665a;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filtro select {
+            width: 100%;
+            min-height: 110px;
+            border-radius: 12px;
+            background: #fbfdfb;
+        }
+
+        /* ===== TABELA ===== */
+        .tabela {
+            overflow-x: auto;
+            width: 100%;
+            border: 1px solid #e4eae6;
+            border-radius: 12px;
+        }
+
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+            min-width: 1700px;
+            width: 100%;
+            background: #ffffff;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 14px 16px;
+            border-bottom: 1px solid #edf1ee;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        th {
+            background: #edf5ef;
+            color: #31523d;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.55px;
+            text-transform: uppercase;
+        }
+
+        tbody tr:not(.linha-detalhes):hover {
+            background: #f6faf7;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* ===== ROLAGEM SUPERIOR ===== */
+        .rolagem-superior {
+            overflow-x: auto;
+            overflow-y: hidden;
+            width: 100%;
+            height: 18px;
+            margin-bottom: 8px;
+        }
+
+        .rolagem-superior div {
+            height: 1px;
+        }
+
+        /* ===== DETALHES DA EMPRESA ===== */
+        .linha-detalhes td {
+            background: #f4f8f5;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        .dados-completos {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .campo-detalhe {
+            padding: 13px;
+            background: #ffffff;
+            border: 1px solid #e0e9e2;
+            border-radius: 10px;
+            overflow-wrap: anywhere;
+        }
+
+        .campo-detalhe strong {
+            display: inline-block;
+            margin-bottom: 5px;
+            color: #557060;
+            font-size: 12px;
+        }
+
+        /* ===== CELULAR ===== */
+        @media (max-width: 700px) {
+            body {
+                padding: 12px;
+            }
+
+            .card {
+                padding: 15px;
+                border-radius: 13px;
+            }
+
+            h1 {
+                font-size: 23px;
+            }
+
+            .painel-filtros {
+                grid-template-columns: 1fr;
+            }
+        }
+        </style>
+
+        </head>
+        <body>
+        <main>
+            <a href="{{ url_for('bases', area=base.area) }}">← Voltar às bases</a>
+            <h1>{{ base.nome }}</h1>
+            <p>Área: {{ areas[base.area].nome }}</p>
+            <p>
+            Registros nesta consulta: {{ registros|length }}.
+            Visíveis após filtros: <strong id="totalFiltrado">{{ registros|length }}</strong>.
+            A tela carrega até 500 registros por vez.
+            </p>
+
+            <section class="card">
+                <form method="get">
+                    <input name="q" value="{{ q }}" placeholder="Pesquisar nesta base">
+                    <button type="submit">Pesquisar</button>
+                </form>
+            </section>
+
+
+<!-- PAINEL DE FILTROS -->
+<section class="card">
+    <h2>Filtros</h2>
+
+    <div class="painel-filtros">
+
+        <div class="filtro">
+            <label for="filtroDDD">DDD</label>
+            <select id="filtroDDD" multiple>
+                <option value="">Todos os DDDs</option>
+            </select>
+        </div>
+
+        <div class="filtro">
+            <label for="filtroUF">UF</label>
+            <select id="filtroUF" multiple>
+                <option value="">Todos os estados</option>
+            </select>
+        </div>
+
+        <div class="filtro">
+        <label for="filtroCidade">Cidade</label>
+        <select id="filtroCidade" multiple>
+            <option value="">Todas as cidades</option>
+        </select>
+        </div>
+
+        <div class="filtro">
+            <label for="filtroBairro">Bairro</label>
+            <select id="filtroBairro" multiple>
+                <option value="">Todos os bairros</option>
+            </select>
+        </div>
+
+        <div class="filtro">
+            <label for="filtroCEP">CEP</label>
+            <select id="filtroCEP" multiple>
+                <option value="">Todos os CEPs</option>
+            </select>
+        </div>
+
+    </div>
+
+    <div style="margin-top: 12px;">
+        <button type="button" onclick="aplicarFiltros()">Aplicar filtros</button>
+        <button type="button" onclick="limparFiltros()">Limpar filtros</button>
+    </div>
+</section>
+
+<style>
+.painel-filtros {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+}
+
+.filtro {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filtro select {
+    min-height: 100px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background: white;
+}
+</style>
+
+    <!-- Barra de rolagem horizontal superior -->
+    <div class="rolagem-superior" id="rolagemSuperior">
+        <div id="espacadorRolagem"></div>
+    </div>
+
+    <div class="tabela" id="tabelaContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th>CNPJ</th>
+                    <th>LOJA</th>
+                    <th>EMPRESA</th>
+                    <th>DDD</th>
+                    <th>UF</th>
+                    <th>CIDADE</th>
+                    <th>BAIRRO</th>
+                    <th>CEP</th>
+                    <th>STATUS</th>
+                    <th>ÚLTIMO CONTATO</th>
+                    <th>AÇÃO</th>
+                </tr>
+            </thead>
+<tbody>
+    {% for registro in registros %}
+        {% set dados = registro.dados or {} %}
+
+        <tr>
+            <td>{{ dados.get('cnpj', '') }}</td>
+
+            <td>
+                {{ dados.get('identificador_matriz_filial', '') }}
+            </td>
+
+            <td>
+                {{ dados.get('nome_fantasia', '') or
+                   dados.get('razao_social', '') }}
+            </td>
+
+            <td>{{ dados.get('ddd_1', '') }}</td>
+
+            <td>{{ dados.get('uf', '') }}</td>
+
+            <td>
+                {{ dados.get('municipio', '') or
+                   dados.get('codigo_municipio', '') }}
+            </td>
+
+            <td>{{ dados.get('bairro', '') }}</td>
+
+            <td>{{ dados.get('cep', '') }}</td>
+
+            <td>{{ registro.status_comercial or '' }}</td>
+
+            <td>{{ registro.ultimo_contato or '' }}</td>
+
+            <td>
+                <a
+                    href="{{ url_for('empresa_editar', cnpj=dados.get('cnpj', registro.identificador or '')) }}"
+                    class="botao-detalhes"
+                    title="Abrir cadastro da empresa">
+                    + Abrir
+                </a>
+            </td>
+        </tr>
+    {% else %}
+        <tr>
+            <td colspan="11">Nenhum registro encontrado.</td>
+        </tr>
+    {% endfor %}
+</tbody>
+</table>
+</div>
+</section>
+
+<script>
+function alternarDetalhes(id, botao) {
+    const linha = document.getElementById(id);
+
+    if (!linha) return;
+
+    const fechado = linha.style.display === "none";
+
+    linha.style.display = fechado ? "table-row" : "none";
+    botao.textContent = fechado ? "−" : "+";
+}
+
+/* Sincroniza a barra superior com a tabela */
+const barraSuperior = document.getElementById("rolagemSuperior");
+const espacador = document.getElementById("espacadorRolagem");
+const tabelaContainer = document.getElementById("tabelaContainer");
+
+function ajustarBarraSuperior() {
+    espacador.style.width = tabelaContainer.scrollWidth + "px";
+}
+
+barraSuperior.addEventListener("scroll", function () {
+    tabelaContainer.scrollLeft = barraSuperior.scrollLeft;
+});
+
+tabelaContainer.addEventListener("scroll", function () {
+    barraSuperior.scrollLeft = tabelaContainer.scrollLeft;
+});
+
+window.addEventListener("resize", ajustarBarraSuperior);
+ajustarBarraSuperior();
+
+
+
+const filtros = {
+    ddd: document.getElementById("filtroDDD"),
+    uf: document.getElementById("filtroUF"),
+    cidade: document.getElementById("filtroCidade"),
+    bairro: document.getElementById("filtroBairro"),
+    cep: document.getElementById("filtroCEP")
+};
+
+// Colunas da tabela: começam em zero.
+const colunas = {
+    ddd: 3,
+    uf: 4,
+    cidade: 5,
+    bairro: 6,
+    cep: 7
+};
+
+// Normaliza os valores para evitar opções vazias e duplicadas.
+function limparTexto(valor) {
+    return (valor || "").trim();
+}
+
+// Preenche cada filtro automaticamente com os dados da tabela.
+function preencherFiltros() {
+    const linhas = document.querySelectorAll(
+        "#tabelaContainer tbody tr:not(.linha-detalhes)"
+    );
+
+    Object.entries(filtros).forEach(([nome, select]) => {
+        const valores = new Set();
+
+        linhas.forEach(linha => {
+            if (linha.cells.length <= colunas[nome]) return;
+
+            const valor = limparTexto(
+                linha.cells[colunas[nome]].textContent
+            );
+
+            if (valor) valores.add(valor);
+        });
+
+        // Mantém a primeira opção ("Todos", "Todas" etc.).
+        const primeiraOpcao = select.options[0];
+        select.replaceChildren(primeiraOpcao);
+
+        [...valores]
+            .sort((a, b) => a.localeCompare(b, "pt-BR"))
+            .forEach(valor => {
+                const opcao = document.createElement("option");
+                opcao.value = valor;
+                opcao.textContent = valor;
+                select.appendChild(opcao);
+            });
+    });
+}
+
+// Retorna apenas os valores realmente selecionados.
+function valoresSelecionados(select) {
+    return Array.from(select.selectedOptions)
+        .map(opcao => opcao.value)
+        .filter(valor => valor !== "");
+}
+
+// Aplica todos os filtros simultaneamente.
+function aplicarFiltros() {
+    const selecionados = {};
+
+    Object.entries(filtros).forEach(([nome, select]) => {
+        selecionados[nome] = valoresSelecionados(select);
+    });
+
+    const linhas = document.querySelectorAll(
+        "#tabelaContainer tbody tr:not(.linha-detalhes)"
+    );
+
+    let totalVisivel = 0;
+
+    linhas.forEach(linha => {
+        // Ignora a linha "Nenhum registro encontrado".
+        if (linha.cells.length < 8) {
+            linha.style.display = "";
+            return;
+        }
+
+        const corresponde = Object.entries(selecionados).every(
+            ([nome, valores]) => {
+                if (valores.length === 0) return true;
+
+                const valorCelula = limparTexto(
+                    linha.cells[colunas[nome]].textContent
+                );
+
+                return valores.includes(valorCelula);
+            }
+        );
+
+        linha.style.display = corresponde ? "" : "none";
+
+        if (corresponde) totalVisivel++;
+
+        // Oculta os detalhes quando o cadastro não corresponde.
+        const detalhes = linha.nextElementSibling;
+
+        if (
+            detalhes &&
+            detalhes.classList.contains("linha-detalhes") &&
+            !corresponde
+        ) {
+            detalhes.style.display = "none";
+        }
+    });
+
+    // Atualiza o contador, sem alterar o texto original do servidor.
+    const contador = document.getElementById("totalFiltrado");
+
+    if (contador) {
+        contador.textContent = totalVisivel;
+    }
+}
+
+// Limpa as seleções e mostra novamente todos os registros carregados.
+function limparFiltros() {
+    Object.values(filtros).forEach(select => {
+        Array.from(select.options).forEach(opcao => {
+            opcao.selected = false;
+        });
+    });
+
+    aplicarFiltros();
+}
+
+// Atualiza a lista de opções quando a página termina de carregar.
+preencherFiltros();
+
+// Também permite filtrar automaticamente ao selecionar uma opção.
+Object.values(filtros).forEach(select => {
+    select.addEventListener("change", aplicarFiltros);
+});
+
+
+function valoresSelecionados(select) {
+    return Array.from(select.selectedOptions)
+        .map(option => option.value)
+        .filter(value => value !== "");
+}
+
+function aplicarFiltros() {
+    const selecionados = {
+        ddd: valoresSelecionados(filtros.ddd),
+        uf: valoresSelecionados(filtros.uf),
+        bairro: valoresSelecionados(filtros.bairro),
+        cep: valoresSelecionados(filtros.cep)
+    };
+
+    const linhas = document.querySelectorAll(
+        "#tabelaContainer tbody tr:not(.linha-detalhes)"
+    );
+
+    linhas.forEach(linha => {
+        const celulas = linha.cells;
+
+        const ddd = celulas[3].textContent.trim();
+        const uf = celulas[4].textContent.trim();
+        const bairro = celulas[6].textContent.trim();
+        const cep = celulas[7].textContent.trim();
+
+        const corresponde =
+            (!selecionados.ddd.length || selecionados.ddd.includes(ddd)) &&
+            (!selecionados.uf.length || selecionados.uf.includes(uf)) &&
+            (!selecionados.bairro.length || selecionados.bairro.includes(bairro)) &&
+            (!selecionados.cep.length || selecionados.cep.includes(cep));
+
+        linha.style.display = corresponde ? "" : "none";
+
+        const detalhes = linha.nextElementSibling;
+        if (detalhes && detalhes.classList.contains("linha-detalhes")) {
+            if (!corresponde) {
+                detalhes.style.display = "none";
+            }
+        }
+    });
+}
+
+function limparFiltros() {
+    Object.values(filtros).forEach(select => {
+        Array.from(select.options).forEach(option => {
+            option.selected = false;
+        });
+    });
+
+    aplicarFiltros();
+}
+
+</script>
+
+        </main>
+        </body>
+        </html>
