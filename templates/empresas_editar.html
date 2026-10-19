@@ -286,9 +286,8 @@
 
         <section class="grupo">
             <h2>Acompanhamento comercial</h2>
-
             <form
-                action="{{ url_for('salvar_empresa', cnpj=empresa.get('cnpj', '')) }}"
+                action="{{ url_for('registro_editar', registro_id=registro.id) }}"
                 method="post"
             >
                 <div class="formulario">

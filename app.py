@@ -497,9 +497,10 @@ def registro_editar(registro_id):
             )
 
         return render_template(
-            "registro_editar.html",
-            registro=registro,
-            dados=dados
+        "empresas_editar.html",
+        empresa=registro,
+        registro=registro,
+        dados=dados
         )
 
     except Exception as erro:
@@ -534,7 +535,6 @@ def inicio():
 
             inicio_lote += tamanho_lote
 
-        empresas = resposta.data or []
 
         if q:
             termo = q.lower()

@@ -544,16 +544,9 @@
                         <td>{{ registro.status_comercial or '' }}</td>
 
                         <td>{{ registro.ultimo_contato or '' }}</td>
-
                         <td>
                             <a
-                                href="{{ url_for(
-                                    'empresa_editar',
-                                    cnpj=dados.get(
-                                        'cnpj',
-                                        registro.identificador or ''
-                                    )
-                                ) }}"
+                                href="{{ url_for('registro_editar', registro_id=registro.id) }}"
                                 class="botao-detalhes"
                                 title="Abrir cadastro da empresa"
                             >
