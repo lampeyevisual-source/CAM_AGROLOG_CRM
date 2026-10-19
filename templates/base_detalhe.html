@@ -289,7 +289,6 @@ a.botao-detalhes:hover {
                 </form>
             </section>
 
-
 <!-- PAINEL DE FILTROS -->
 <section class="card">
     <h2>Filtros</h2>
@@ -306,39 +305,43 @@ a.botao-detalhes:hover {
         <div class="filtro">
             <label for="filtroUF">UF</label>
             <select id="filtroUF" multiple>
-                <option value="">Todos os estados</option>
+                <option value="">Selecione uma UF ou todas</option>
             </select>
         </div>
 
         <div class="filtro">
-        <label for="filtroCidade">Cidade</label>
-        <select id="filtroCidade" multiple>
-            <option value="">Todas as cidades</option>
-        </select>
+            <label for="filtroCidade">Cidade</label>
+            <select id="filtroCidade" multiple disabled>
+                <option value="">Selecione primeiro a UF</option>
+            </select>
         </div>
 
         <div class="filtro">
             <label for="filtroBairro">Bairro</label>
-            <select id="filtroBairro" multiple>
-                <option value="">Todos os bairros</option>
+            <select id="filtroBairro" multiple disabled>
+                <option value="">Selecione primeiro a cidade</option>
             </select>
         </div>
 
         <div class="filtro">
             <label for="filtroCEP">CEP</label>
-            <select id="filtroCEP" multiple>
-                <option value="">Todos os CEPs</option>
+            <select id="filtroCEP" multiple disabled>
+                <option value="">Selecione primeiro a cidade</option>
             </select>
         </div>
 
     </div>
 
     <div style="margin-top: 12px;">
-        <button type="button" onclick="aplicarFiltros()">Aplicar filtros</button>
-        <button type="button" onclick="limparFiltros()">Limpar filtros</button>
+        <button type="button" onclick="aplicarFiltros()">
+            Aplicar filtros
+        </button>
+
+        <button type="button" onclick="limparFiltros()">
+            Limpar filtros
+        </button>
     </div>
 </section>
-
 <style>
 .painel-filtros {
     display: grid;
@@ -466,6 +469,7 @@ tabelaContainer.addEventListener("scroll", function () {
 
 window.addEventListener("resize", ajustarBarraSuperior);
 ajustarBarraSuperior();
+
 
 
 
