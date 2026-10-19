@@ -374,21 +374,33 @@ def base_detalhe(base_id):
 
         base = resultado.data[0]
 
-        # Busca os registros vinculados à base.
-        consulta = (
-            supabase.table("base_registros")
-            .select("*")
-            .eq("base_id", base_id)
-            .order("id")
-            .limit(500)
-        )
-
+        # Pesquisa textual.
         q = request.args.get("q", "").strip()
 
-        resposta = consulta.execute()
-        registros = resposta.data or []
+        # Carrega TODOS os registros em lotes de 1.000.
+        registros = []
+        tamanho_lote = 1000
+        inicio = 0
 
-        # Pesquisa nos dados carregados.
+        while True:
+            resposta = (
+                supabase.table("base_registros")
+                .select("*")
+                .eq("base_id", base_id)
+                .order("id")
+                .range(inicio, inicio + tamanho_lote - 1)
+                .execute()
+            )
+
+            lote = resposta.data or []
+            registros.extend(lote)
+
+            if len(lote) < tamanho_lote:
+                break
+
+            inicio += tamanho_lote
+
+        # Aplica a pesquisa sobre todos os registros carregados.
         if q:
             termo = q.casefold()
             registros = [
@@ -416,6 +428,7 @@ def base_detalhe(base_id):
     except Exception as erro:
         app.logger.exception("Erro ao abrir detalhes da base")
         return f"Erro ao abrir a base: {erro}", 500
+
 
 @app.route("/base-registro/<int:registro_id>", methods=["GET", "POST"])
 @exigir_login
@@ -498,14 +511,28 @@ def inicio():
     q = request.args.get("q", "").strip()
 
     try:
-        resposta = (
-            cliente_supabase()
-            .table("empresas")
-            .select("*")
-            .order("atualizado_em", desc=True)
-            .limit(500)
-            .execute()
-        )
+        supabase = cliente_supabase()
+        empresas = []
+        tamanho_lote = 1000
+        inicio_lote = 0
+
+        while True:
+            resposta = (
+                supabase
+                .table("empresas")
+                .select("*")
+                .order("atualizado_em", desc=True)
+                .range(inicio_lote, inicio_lote + tamanho_lote - 1)
+                .execute()
+            )
+
+            lote = resposta.data or []
+            empresas.extend(lote)
+
+            if len(lote) < tamanho_lote:
+                break
+
+            inicio_lote += tamanho_lote
 
         empresas = resposta.data or []
 
