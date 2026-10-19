@@ -531,7 +531,11 @@ def inicio():
             empresas = filtradas
 
         return render_template(
+<<<<<<< HEAD
             "login.html",
+=======
+            "inicio.html",
+>>>>>>> f11fec64db0cb7f90ba7f6c750a67e42cce5e3a1
             empresas=empresas,
             q=q
         )
