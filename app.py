@@ -429,7 +429,6 @@ def base_detalhe(base_id):
         app.logger.exception("Erro ao abrir detalhes da base")
         return f"Erro ao abrir a base: {erro}", 500
 
-
 @app.route("/base-registro/<int:registro_id>", methods=["GET", "POST"])
 @exigir_login
 def registro_editar(registro_id):
@@ -451,23 +450,48 @@ def registro_editar(registro_id):
         registro = resultado.data[0]
         dados = registro.get("dados") or {}
 
+        if not isinstance(dados, dict):
+            dados = {}
+
+        # Dados do acompanhamento comercial
+        acompanhamento = dados.get("acompanhamento", {})
+
+        if not isinstance(acompanhamento, dict):
+            acompanhamento = {}
+
         if request.method == "POST":
             atualizacoes = {
                 campo: request.form.get(campo, "").strip() or None
                 for campo in CAMPOS_COMERCIAIS
             }
 
-            atualizacoes["visitou"] = (
-                request.form.get("visitou") == "sim"
-            )
+            # Corrige a leitura do campo "Visitou a empresa?"
+            visitou = request.form.get("visitou", "").strip().lower()
 
-            valor = atualizacoes.get("valor_ultima_compra")
+            if visitou in ("sim", "true", "1"):
+                atualizacoes["visitou"] = True
+            elif visitou in ("não", "nao", "false", "0"):
+                atualizacoes["visitou"] = False
+            else:
+                atualizacoes["visitou"] = None
+
+            valor = request.form.get("valor_ultima_compra", "").strip()
 
             if valor:
                 try:
+                    valor_normalizado = valor.replace(" ", "")
+
+                    if "," in valor_normalizado:
+                        valor_normalizado = (
+                            valor_normalizado
+                            .replace(".", "")
+                            .replace(",", ".")
+                        )
+
                     atualizacoes["valor_ultima_compra"] = float(
-                        valor.replace(".", "").replace(",", ".")
+                        valor_normalizado
                     )
+
                 except ValueError:
                     flash("Valor da compra inválido.")
                     return redirect(
@@ -496,14 +520,45 @@ def registro_editar(registro_id):
                 )
             )
 
+        # Monta os grupos para exibição dos dados cadastrais.
+        # Os nomes e campos devem corresponder à estrutura de dados da base.
+        grupos = []
+
+        for chave, valor in dados.items():
+            if chave == "acompanhamento":
+                continue
+
+            if isinstance(valor, dict):
+                itens = list(valor.items())
+                if itens:
+                    grupos.append((chave.replace("_", " ").title(), itens))
+            elif isinstance(valor, list):
+                itens = [
+                    (str(i + 1), item)
+                    for i, item in enumerate(valor)
+                ]
+                if itens:
+                    grupos.append((chave.replace("_", " ").title(), itens))
+            else:
+                grupos.append((
+                    chave.replace("_", " ").title(),
+                    [(chave.replace("_", " ").title(), valor)]
+                ))
+
         return render_template(
-        "empresas_editar.html",
-        empresa=registro,
-        registro=registro,
-        dados=dados
+            "empresas_editar.html",
+            empresa=dados,
+            registro=registro,
+            dados=dados,
+            acompanhamento=acompanhamento,
+            grupos=grupos
         )
 
     except Exception as erro:
+        app.logger.exception(
+            "Erro ao editar registro %s",
+            registro_id
+        )
         return f"Erro ao editar registro: {erro}", 500
 
 @app.route("/")
