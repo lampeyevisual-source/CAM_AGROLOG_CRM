@@ -253,6 +253,99 @@
         .rolagem-superior div {
             height: 1px;
         }
+        
+                /* ======================================================
+           PAGINAÇÃO
+        ====================================================== */
+
+        .painel-paginacao {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+            padding: 16px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+        }
+
+        .paginacao-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .paginacao-controles {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .paginacao-controles button {
+            padding: 9px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: #fff;
+            color: #374151;
+            cursor: pointer;
+        }
+
+        .paginacao-controles button:hover:not(:disabled) {
+            background: #f3f4f6;
+        }
+
+        .paginacao-controles button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .paginacao-controles select {
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        /* ======================================================
+           5. CSS — RESPONSIVIDADE
+        ====================================================== */
+
+        @media (max-width: 700px) {
+            body {
+                padding: 12px;
+            }
+
+            .card {
+                padding: 15px;
+                border-radius: 13px;
+            }
+
+            h1 {
+                font-size: 23px;
+            }
+
+            .painel-filtros {
+                grid-template-columns: 1fr;
+            }
+
+            .acoes-filtros button {
+                flex: 1;
+            }
+
+            .painel-paginacao {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .paginacao-controles {
+                justify-content: space-between;
+                flex-wrap: wrap;
+            }
+        }
 
         /* =====================================================
            5. CSS — RESPONSIVIDADE
@@ -480,6 +573,46 @@
         </table>
     </div>
 
+    <!-- PAGINAÇÃO -->
+    <div class="painel-paginacao" id="painelPaginacao">
+
+        <div class="paginacao-info">
+            <span>
+                Total de registros:
+                <strong id="totalRegistrosPagina">0</strong>
+            </span>
+
+            <span id="intervaloRegistros">
+                Exibindo 0 registros
+            </span>
+        </div>
+
+        <div class="paginacao-controles">
+
+            <label for="registrosPorPagina">
+                Por página:
+            </label>
+
+            <select id="registrosPorPagina">
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="200">200</option>
+            </select>
+
+            <button type="button" id="paginaAnterior" disabled>
+                ← Anterior
+            </button>
+
+            <span id="infoPaginacao">Página 1</span>
+
+            <button type="button" id="paginaProxima" disabled>
+                Próxima →
+            </button>
+
+        </div>
+    </div>
+
 </main>
 
 <!-- =========================================================
@@ -517,7 +650,7 @@
 </script>
 
 <!-- =========================================================
-     11. JAVASCRIPT — FILTROS DA TABELA
+     11. JAVASCRIPT — FILTROS DA TABELA     
 ========================================================== -->
 
 <script>
@@ -541,7 +674,16 @@
 
     const botaoAplicar = document.getElementById("btnAplicarFiltros");
     const botaoLimpar = document.getElementById("btnLimparFiltros");
+    // PAGINAÇÃO
+    const seletorQuantidade = document.getElementById("registrosPorPagina");
+    const botaoAnterior = document.getElementById("paginaAnterior");
+    const botaoProxima = document.getElementById("paginaProxima");
+    const infoPaginacao = document.getElementById("infoPaginacao");
+    const totalRegistrosPagina = document.getElementById("totalRegistrosPagina");
+    const intervaloRegistros = document.getElementById("intervaloRegistros");
 
+    let paginaAtual = 1;
+    let linhasFiltradas = [];
     /*
        Índices das colunas da tabela:
        CNPJ = 0
@@ -865,6 +1007,7 @@
        11.8. APLICAÇÃO CONJUNTA DOS FILTROS
     ----------------------------------------------------- */
 
+        
     function aplicarFiltros() {
         const dddsSelecionados = valoresSelecionados(filtros.ddd);
         const ufsSelecionadas = obterUFsSelecionadas();
@@ -873,44 +1016,37 @@
         const cepsSelecionados = valoresSelecionados(filtros.cep);
 
         const linhas = obterLinhas();
-        let totalVisivel = 0;
 
-        linhas.forEach(function (linha) {
-            const corresponde =
+        linhasFiltradas = linhas.filter(function (linha) {
+            return (
                 correspondeDDD(linha, dddsSelecionados) &&
-
                 linhaCorrespondeUF(linha, ufsSelecionadas) &&
-
                 (
                     cidadesSelecionadas.length === 0 ||
                     cidadesSelecionadas.includes(
                         valorDaLinha(linha, "cidade")
                     )
                 ) &&
-
                 (
                     bairrosSelecionados.length === 0 ||
                     bairrosSelecionados.includes(
                         valorDaLinha(linha, "bairro")
                     )
                 ) &&
-
                 (
                     cepsSelecionados.length === 0 ||
                     cepsSelecionados.includes(
                         valorDaLinha(linha, "cep")
                     )
-                );
-
-            linha.style.display = corresponde ? "" : "none";
-
-            if (corresponde) {
-                totalVisivel++;
-            }
+                )
+            );
         });
 
+        paginaAtual = 1;
+        renderizarPaginacao();
+
         if (contador) {
-            contador.textContent = totalVisivel;
+            contador.textContent = linhasFiltradas.length;
         }
     }
 
@@ -945,6 +1081,111 @@
 
         aplicarFiltros();
     }
+    
+/* -----------------------------------------------------
+   PAGINAÇÃO
+----------------------------------------------------- */
+
+function renderizarPaginacao() {
+    const todasLinhas = obterLinhas();
+    const quantidade = Number(seletorQuantidade?.value || 100);
+    const total = linhasFiltradas.length;
+    const totalPaginas = Math.max(1, Math.ceil(total / quantidade));
+
+    paginaAtual = Math.min(paginaAtual, totalPaginas);
+
+    const inicio = (paginaAtual - 1) * quantidade;
+    const fim = Math.min(inicio + quantidade, total);
+
+    const linhasDaPagina = new Set(
+        linhasFiltradas.slice(inicio, fim)
+    );
+
+    todasLinhas.forEach(function (linha) {
+        linha.style.display = linhasDaPagina.has(linha) ? "" : "none";
+    });
+
+    if (contador) contador.textContent = total;
+
+    if (totalRegistrosPagina) {
+        totalRegistrosPagina.textContent = total;
+    }
+
+    if (intervaloRegistros) {
+        intervaloRegistros.textContent = total === 0
+            ? "Exibindo 0 registros"
+            : `Exibindo ${inicio + 1}–${fim} de ${total}`;
+    }
+
+    if (infoPaginacao) {
+        infoPaginacao.textContent =
+            `Página ${paginaAtual} de ${totalPaginas}`;
+    }
+
+    if (botaoAnterior) botaoAnterior.disabled = paginaAtual <= 1;
+    if (botaoProxima) botaoProxima.disabled = paginaAtual >= totalPaginas;
+}
+
+function atualizarPaginacao() {
+    linhasFiltradas = obterLinhas().filter(correspondeFiltros);
+    paginaAtual = 1;
+    renderizarPaginacao();
+}
+
+function correspondeFiltros(linha) {
+    const ddds = valoresSelecionados(filtros.ddd);
+    const ufs = obterUFsSelecionadas();
+    const cidades = valoresSelecionados(filtros.cidade);
+    const bairros = valoresSelecionados(filtros.bairro);
+    const ceps = valoresSelecionados(filtros.cep);
+
+    return (
+        correspondeDDD(linha, ddds) &&
+        linhaCorrespondeUF(linha, ufs) &&
+        (cidades.length === 0 ||
+            cidades.includes(valorDaLinha(linha, "cidade"))) &&
+        (bairros.length === 0 ||
+            bairros.includes(valorDaLinha(linha, "bairro"))) &&
+        (ceps.length === 0 ||
+            ceps.includes(valorDaLinha(linha, "cep")))
+    );
+}
+
+/* -----------------------------------------------------
+   EVENTOS DA PAGINAÇÃO
+----------------------------------------------------- */
+
+if (seletorQuantidade) {
+    seletorQuantidade.addEventListener("change", function () {
+        paginaAtual = 1;
+        renderizarPaginacao();
+    });
+}
+
+if (botaoAnterior) {
+    botaoAnterior.addEventListener("click", function () {
+        if (paginaAtual > 1) {
+            paginaAtual--;
+            renderizarPaginacao();
+        }
+    });
+}
+
+if (botaoProxima) {
+    botaoProxima.addEventListener("click", function () {
+        const quantidade = Number(seletorQuantidade?.value || 100);
+        const totalPaginas = Math.max(
+            1,
+            Math.ceil(linhasFiltradas.length / quantidade)
+        );
+
+        if (paginaAtual < totalPaginas) {
+            paginaAtual++;
+            renderizarPaginacao();
+        }
+    });
+}
+
 
     /* -----------------------------------------------------
        11.10. EVENTOS — ATUALIZAÇÃO AUTOMÁTICA
