@@ -1,12 +1,16 @@
+
 <!doctype html>
-        <html lang="pt-br">
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>{{ base.nome }} | CAM CRM</title>
-            
-        <style>
-        /* ===== VISUAL GERAL ===== */
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>{{ base.nome }} | CAM CRM</title>
+
+    <!-- =====================================================
+         1. CSS — ESTILO GERAL DA PÁGINA
+    ====================================================== -->
+    <style>
         * {
             box-sizing: border-box;
         }
@@ -40,17 +44,6 @@
             margin-top: 0;
         }
 
-        /* ===== CARTÕES ===== */
-        .card {
-            background: #ffffff;
-            padding: 22px;
-            border: 1px solid #e2e9e4;
-            border-radius: 16px;
-            margin: 18px 0;
-            box-shadow: 0 4px 16px rgba(22, 56, 35, 0.04);
-        }
-
-        /* ===== LINKS ===== */
         a {
             color: #197044;
             text-decoration: none;
@@ -62,14 +55,26 @@
             text-decoration: underline;
         }
 
-        /* ===== BOTÕES ===== */
+        /* =====================================================
+           2. CSS — CARTÕES E BOTÕES
+        ====================================================== */
+
+        .card {
+            background: #fff;
+            padding: 22px;
+            border: 1px solid #e2e9e4;
+            border-radius: 16px;
+            margin: 18px 0;
+            box-shadow: 0 4px 16px rgba(22, 56, 35, 0.04);
+        }
+
         button {
             font-family: inherit;
             font-size: 13px;
             font-weight: 650;
             padding: 11px 18px;
             background: #176b3a;
-            color: #ffffff;
+            color: #fff;
             border: 1px solid #176b3a;
             border-radius: 999px;
             cursor: pointer;
@@ -85,48 +90,41 @@
             transform: scale(0.98);
         }
 
-        /* Botão + da tabela */
-.botao-detalhes {
-    width: 34px;
-    height: 34px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    box-sizing: border-box;
-    border-radius: 50%;
-    font-size: 22px;
-    font-weight: 600;
-    line-height: 1;
-    background: #e7f4eb;
-    color: #176b3a !important;
-    border: 1px solid #c9e6d2;
-    text-decoration: none !important;
-    cursor: pointer;
-    flex-shrink: 0;
-}
-
-a.botao-detalhes:visited,
-a.botao-detalhes:hover {
-    color: #176b3a !important;
-    text-decoration: none !important;
-}
-
-a.botao-detalhes:hover {
-    background: #d5ecdd;
-}   
-
-        .botao-detalhes:hover {
-            background: #176b3a;
-            color: #ffffff;
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
         }
 
-        /* ===== CAMPOS E PESQUISA ===== */
+        .botao-detalhes {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+            padding: 0 13px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 650;
+            background: #e7f4eb;
+            color: #176b3a !important;
+            border: 1px solid #c9e6d2;
+            text-decoration: none !important;
+            white-space: nowrap;
+        }
+
+        .botao-detalhes:hover {
+            background: #d5ecdd;
+        }
+
+        /* =====================================================
+           3. CSS — CAMPOS DE PESQUISA E FILTROS
+        ====================================================== */
+
         input, select, textarea {
             font-family: inherit;
             font-size: 14px;
             color: #26382d;
-            background: #ffffff;
+            background: #fff;
             border: 1px solid #d8e2db;
             border-radius: 10px;
             padding: 11px 13px;
@@ -139,10 +137,23 @@ a.botao-detalhes:hover {
             box-shadow: 0 0 0 3px rgba(35, 131, 75, 0.12);
         }
 
-        /* ===== FILTROS ===== */
+        .pesquisa-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .pesquisa-form input {
+            flex: 1;
+            min-width: 200px;
+        }
+
         .painel-filtros {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(
+                auto-fit,
+                minmax(180px, 1fr)
+            );
             gap: 16px;
         }
 
@@ -150,6 +161,7 @@ a.botao-detalhes:hover {
             display: flex;
             flex-direction: column;
             gap: 8px;
+            min-width: 0;
         }
 
         .filtro label {
@@ -167,7 +179,29 @@ a.botao-detalhes:hover {
             background: #fbfdfb;
         }
 
-        /* ===== TABELA ===== */
+        .filtro select:disabled {
+            background: #edf1ee;
+            color: #7c8980;
+            cursor: not-allowed;
+        }
+
+        .acoes-filtros {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .ajuda-filtros {
+            color: #627267;
+            font-size: 12px;
+            margin-top: 12px;
+        }
+
+        /* =====================================================
+           4. CSS — TABELA E ROLAGEM HORIZONTAL
+        ====================================================== */
+
         .tabela {
             overflow-x: auto;
             width: 100%;
@@ -180,7 +214,7 @@ a.botao-detalhes:hover {
             border-spacing: 0;
             min-width: 1700px;
             width: 100%;
-            background: #ffffff;
+            background: #fff;
         }
 
         th, td {
@@ -208,7 +242,6 @@ a.botao-detalhes:hover {
             border-bottom: none;
         }
 
-        /* ===== ROLAGEM SUPERIOR ===== */
         .rolagem-superior {
             overflow-x: auto;
             overflow-y: hidden;
@@ -221,35 +254,10 @@ a.botao-detalhes:hover {
             height: 1px;
         }
 
-        /* ===== DETALHES DA EMPRESA ===== */
-        .linha-detalhes td {
-            background: #f4f8f5;
-            white-space: normal;
-            overflow-wrap: anywhere;
-        }
+        /* =====================================================
+           5. CSS — RESPONSIVIDADE
+        ====================================================== */
 
-        .dados-completos {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 12px;
-        }
-
-        .campo-detalhe {
-            padding: 13px;
-            background: #ffffff;
-            border: 1px solid #e0e9e2;
-            border-radius: 10px;
-            overflow-wrap: anywhere;
-        }
-
-        .campo-detalhe strong {
-            display: inline-block;
-            margin-bottom: 5px;
-            color: #557060;
-            font-size: 12px;
-        }
-
-        /* ===== CELULAR ===== */
         @media (max-width: 700px) {
             body {
                 padding: 12px;
@@ -267,407 +275,731 @@ a.botao-detalhes:hover {
             .painel-filtros {
                 grid-template-columns: 1fr;
             }
+
+            .acoes-filtros button {
+                flex: 1;
+            }
         }
-        </style>
+    </style>
+</head>
 
-        </head>
-        <body>
-        <main>
-            <a href="{{ url_for('bases', area=base.area) }}">← Voltar às bases</a>
-            <h1>{{ base.nome }}</h1>
-            <p>Área: {{ areas[base.area].nome }}</p>
-            <p>
-            Registros nesta consulta: {{ registros|length }}.
-            Visíveis após filtros: <strong id="totalFiltrado">{{ registros|length }}</strong>.
-            A tela carrega até 500 registros por vez.
-            </p>
+<body>
+<main>
 
-            <section class="card">
-                <form method="get">
-                    <input name="q" value="{{ q }}" placeholder="Pesquisar nesta base">
-                    <button type="submit">Pesquisar</button>
-                </form>
-            </section>
+    <!-- =====================================================
+         6. HTML — CABEÇALHO E NAVEGAÇÃO
+    ====================================================== -->
 
-<!-- PAINEL DE FILTROS -->
-<section class="card">
-    <h2>Filtros</h2>
+    <a href="{{ url_for('bases', area=base.area) }}">
+        ← Voltar às bases
+    </a>
 
-    <div class="painel-filtros">
+    <h1>{{ base.nome }}</h1>
 
-        <div class="filtro">
-            <label for="filtroDDD">DDD</label>
-            <select id="filtroDDD" multiple>
-                <option value="">Todos os DDDs</option>
-            </select>
+    <p>Área: {{ areas[base.area].nome }}</p>
+
+    <p>
+        Registros nesta consulta:
+        {{ registros|length }}.
+
+        Visíveis após filtros:
+        <strong id="totalFiltrado">{{ registros|length }}</strong>.
+    </p>
+
+    <!-- =====================================================
+         7. HTML — PESQUISA DA BASE
+    ====================================================== -->
+
+    <section class="card">
+        <h2>Pesquisar registros</h2>
+
+        <form method="get" class="pesquisa-form">
+            <input
+                type="text"
+                name="q"
+                value="{{ q }}"
+                placeholder="Pesquisar nesta base"
+            >
+
+            <button type="submit">Pesquisar</button>
+        </form>
+    </section>
+
+    <!-- =====================================================
+         8. HTML — PAINEL DE FILTROS
+    ====================================================== -->
+
+    <section class="card" id="painelFiltros">
+        <h2>Filtros</h2>
+
+        <div class="painel-filtros">
+
+            <div class="filtro">
+                <label for="filtroDDD">DDD</label>
+
+                <select id="filtroDDD" multiple>
+                    <option value="">Todos os DDDs</option>
+                </select>
+            </div>
+
+            <div class="filtro">
+                <label for="filtroUF">UF</label>
+
+                <select id="filtroUF" multiple>
+                    <option value="">Carregando UFs...</option>
+                </select>
+            </div>
+
+            <div class="filtro">
+                <label for="filtroCidade">Cidade</label>
+
+                <select id="filtroCidade" multiple disabled>
+                    <option value="">Selecione primeiro a UF</option>
+                </select>
+            </div>
+
+            <div class="filtro">
+                <label for="filtroBairro">Bairro</label>
+
+                <select id="filtroBairro" multiple disabled>
+                    <option value="">Selecione primeiro a cidade</option>
+                </select>
+            </div>
+
+            <div class="filtro">
+                <label for="filtroCEP">CEP</label>
+
+                <select id="filtroCEP" multiple disabled>
+                    <option value="">Selecione primeiro a cidade</option>
+                </select>
+            </div>
+
         </div>
 
-        <div class="filtro">
-            <label for="filtroUF">UF</label>
-            <select id="filtroUF" multiple>
-                <option value="">Selecione uma UF ou todas</option>
-            </select>
+        <div class="acoes-filtros">
+            <button type="button" id="btnAplicarFiltros">
+                Aplicar filtros
+            </button>
+
+            <button type="button" id="btnLimparFiltros">
+                Limpar filtros
+            </button>
         </div>
 
-        <div class="filtro">
-            <label for="filtroCidade">Cidade</label>
-            <select id="filtroCidade" multiple disabled>
-                <option value="">Selecione primeiro a UF</option>
-            </select>
-        </div>
+        <p class="ajuda-filtros">
+            Você pode selecionar várias opções usando Ctrl
+            (ou Command no Mac). Cidade depende da UF;
+            bairro e CEP dependem da cidade.
+        </p>
+    </section>
 
-        <div class="filtro">
-            <label for="filtroBairro">Bairro</label>
-            <select id="filtroBairro" multiple disabled>
-                <option value="">Selecione primeiro a cidade</option>
-            </select>
-        </div>
+    <!-- =====================================================
+         9. HTML — TABELA DE REGISTROS
+    ====================================================== -->
 
-        <div class="filtro">
-            <label for="filtroCEP">CEP</label>
-            <select id="filtroCEP" multiple disabled>
-                <option value="">Selecione primeiro a cidade</option>
-            </select>
-        </div>
-
-    </div>
-
-    <div style="margin-top: 12px;">
-        <button type="button" onclick="aplicarFiltros()">
-            Aplicar filtros
-        </button>
-
-        <button type="button" onclick="limparFiltros()">
-            Limpar filtros
-        </button>
-    </div>
-</section>
-<style>
-.painel-filtros {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 14px;
-}
-
-.filtro {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.filtro select {
-    min-height: 100px;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background: white;
-}
-</style>
-
-    <!-- Barra de rolagem horizontal superior -->
     <div class="rolagem-superior" id="rolagemSuperior">
         <div id="espacadorRolagem"></div>
     </div>
 
     <div class="tabela" id="tabelaContainer">
-        <table>
+        <table id="tabelaRegistros">
             <thead>
                 <tr>
                     <th>CNPJ</th>
-                    <th>LOJA</th>
-                    <th>EMPRESA</th>
+                    <th>Loja</th>
+                    <th>Empresa</th>
                     <th>DDD</th>
                     <th>UF</th>
-                    <th>CIDADE</th>
-                    <th>BAIRRO</th>
+                    <th>Cidade</th>
+                    <th>Bairro</th>
                     <th>CEP</th>
-                    <th>STATUS</th>
-                    <th>ÚLTIMO CONTATO</th>
-                    <th>AÇÃO</th>
+                    <th>Status</th>
+                    <th>Último contato</th>
+                    <th>Ação</th>
                 </tr>
             </thead>
-<tbody>
-    {% for registro in registros %}
-        {% set dados = registro.dados or {} %}
 
-        <tr>
-            <td>{{ dados.get('cnpj', '') }}</td>
+            <tbody>
+                {% for registro in registros %}
+                    {% set dados = registro.dados or {} %}
 
-            <td>
-                {{ dados.get('identificador_matriz_filial', '') }}
-            </td>
+                    <tr class="linha-registro">
+                        <td>{{ dados.get('cnpj', '') }}</td>
 
-            <td>
-                {{ dados.get('nome_fantasia', '') or
-                   dados.get('razao_social', '') }}
-            </td>
+                        <td>
+                            {{ dados.get('identificador_matriz_filial', '') }}
+                        </td>
 
-            <td>{{ dados.get('ddd_1', '') }}</td>
+                        <td>
+                            {{ dados.get('nome_fantasia', '') or
+                               dados.get('razao_social', '') }}
+                        </td>
 
-            <td>{{ dados.get('uf', '') }}</td>
+                        <td>{{ dados.get('ddd_1', '') }}</td>
 
-            <td>
-                {{ dados.get('municipio', '') or
-                   dados.get('codigo_municipio', '') }}
-            </td>
+                        <td>{{ dados.get('uf', '') }}</td>
 
-            <td>{{ dados.get('bairro', '') }}</td>
+                        <td>
+                            {{ dados.get('municipio', '') or
+                               dados.get('codigo_municipio', '') }}
+                        </td>
 
-            <td>{{ dados.get('cep', '') }}</td>
+                        <td>{{ dados.get('bairro', '') }}</td>
 
-            <td>{{ registro.status_comercial or '' }}</td>
+                        <td>{{ dados.get('cep', '') }}</td>
 
-            <td>{{ registro.ultimo_contato or '' }}</td>
+                        <td>{{ registro.status_comercial or '' }}</td>
 
-            <td>
-                <a
-                    href="{{ url_for('empresa_editar', cnpj=dados.get('cnpj', registro.identificador or '')) }}"
-                    class="botao-detalhes"
-                    title="Abrir cadastro da empresa">
-                    + Abrir
-                </a>
-            </td>
-        </tr>
-    {% else %}
-        <tr>
-            <td colspan="11">Nenhum registro encontrado.</td>
-        </tr>
-    {% endfor %}
-</tbody>
-</table>
-</div>
-</section>
+                        <td>{{ registro.ultimo_contato or '' }}</td>
+
+                        <td>
+                            <a
+                                href="{{ url_for(
+                                    'empresa_editar',
+                                    cnpj=dados.get(
+                                        'cnpj',
+                                        registro.identificador or ''
+                                    )
+                                ) }}"
+                                class="botao-detalhes"
+                                title="Abrir cadastro da empresa"
+                            >
+                                + Abrir
+                            </a>
+                        </td>
+                    </tr>
+
+                {% else %}
+                    <tr class="linha-vazia">
+                        <td colspan="11">
+                            Nenhum registro encontrado.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</main>
+
+<!-- =========================================================
+     10. JAVASCRIPT — ROLAGEM HORIZONTAL
+========================================================== -->
 
 <script>
-function alternarDetalhes(id, botao) {
-    const linha = document.getElementById(id);
+(function () {
+    const barra = document.getElementById("rolagemSuperior");
+    const espacador = document.getElementById("espacadorRolagem");
+    const tabela = document.getElementById("tabelaContainer");
 
-    if (!linha) return;
+    if (!barra || !espacador || !tabela) return;
 
-    const fechado = linha.style.display === "none";
+    function ajustarBarraSuperior() {
+        espacador.style.width = tabela.scrollWidth + "px";
+    }
 
-    linha.style.display = fechado ? "table-row" : "none";
-    botao.textContent = fechado ? "−" : "+";
-}
+    barra.addEventListener("scroll", function () {
+        if (tabela.scrollLeft !== barra.scrollLeft) {
+            tabela.scrollLeft = barra.scrollLeft;
+        }
+    });
 
-/* Sincroniza a barra superior com a tabela */
-const barraSuperior = document.getElementById("rolagemSuperior");
-const espacador = document.getElementById("espacadorRolagem");
-const tabelaContainer = document.getElementById("tabelaContainer");
+    tabela.addEventListener("scroll", function () {
+        if (barra.scrollLeft !== tabela.scrollLeft) {
+            barra.scrollLeft = tabela.scrollLeft;
+        }
+    });
 
-function ajustarBarraSuperior() {
-    espacador.style.width = tabelaContainer.scrollWidth + "px";
-}
+    window.addEventListener("resize", ajustarBarraSuperior);
 
-barraSuperior.addEventListener("scroll", function () {
-    tabelaContainer.scrollLeft = barraSuperior.scrollLeft;
-});
+    ajustarBarraSuperior();
+})();
+</script>
 
-tabelaContainer.addEventListener("scroll", function () {
-    barraSuperior.scrollLeft = tabelaContainer.scrollLeft;
-});
+<!-- =========================================================
+     11. JAVASCRIPT — FILTROS DA TABELA
+========================================================== -->
 
-window.addEventListener("resize", ajustarBarraSuperior);
-ajustarBarraSuperior();
+<script>
+(function () {
+    "use strict";
 
+    /* -----------------------------------------------------
+       11.1. ELEMENTOS E CONFIGURAÇÃO
+    ----------------------------------------------------- */
 
+    const filtros = {
+        ddd: document.getElementById("filtroDDD"),
+        uf: document.getElementById("filtroUF"),
+        cidade: document.getElementById("filtroCidade"),
+        bairro: document.getElementById("filtroBairro"),
+        cep: document.getElementById("filtroCEP")
+    };
 
+    const tabela = document.getElementById("tabelaRegistros");
+    const contador = document.getElementById("totalFiltrado");
 
-const filtros = {
-    ddd: document.getElementById("filtroDDD"),
-    uf: document.getElementById("filtroUF"),
-    cidade: document.getElementById("filtroCidade"),
-    bairro: document.getElementById("filtroBairro"),
-    cep: document.getElementById("filtroCEP")
-};
+    const botaoAplicar = document.getElementById("btnAplicarFiltros");
+    const botaoLimpar = document.getElementById("btnLimparFiltros");
 
-// Colunas da tabela: começam em zero.
-const colunas = {
-    ddd: 3,
-    uf: 4,
-    cidade: 5,
-    bairro: 6,
-    cep: 7
-};
+    /*
+       Índices das colunas da tabela:
+       CNPJ = 0
+       Loja = 1
+       Empresa = 2
+       DDD = 3
+       UF = 4
+       Cidade = 5
+       Bairro = 6
+       CEP = 7
+    */
 
-// Normaliza os valores para evitar opções vazias e duplicadas.
-function limparTexto(valor) {
-    return (valor || "").trim();
-}
+    const colunas = {
+        ddd: 3,
+        uf: 4,
+        cidade: 5,
+        bairro: 6,
+        cep: 7
+    };
 
-// Preenche cada filtro automaticamente com os dados da tabela.
-function preencherFiltros() {
-    const linhas = document.querySelectorAll(
-        "#tabelaContainer tbody tr:not(.linha-detalhes)"
-    );
+    const VALOR_TODAS_UFS = "__TODAS_AS_UFS__";
 
-    Object.entries(filtros).forEach(([nome, select]) => {
-        const valores = new Set();
+    if (
+        !tabela ||
+        !filtros.ddd ||
+        !filtros.uf ||
+        !filtros.cidade ||
+        !filtros.bairro ||
+        !filtros.cep
+    ) {
+        console.error("CAM CRM: elementos dos filtros não encontrados.");
+        return;
+    }
 
-        linhas.forEach(linha => {
-            if (linha.cells.length <= colunas[nome]) return;
+    /* -----------------------------------------------------
+       11.2. LEITURA E NORMALIZAÇÃO DOS REGISTROS
+    ----------------------------------------------------- */
 
-            const valor = limparTexto(
-                linha.cells[colunas[nome]].textContent
-            );
+    function normalizar(valor) {
+        return (valor || "")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
 
-            if (valor) valores.add(valor);
+    function obterLinhas() {
+        return Array.from(
+            tabela.querySelectorAll("tbody tr.linha-registro")
+        ).filter(function (linha) {
+            return linha.cells.length >= 8;
+        });
+    }
+
+    function valorDaLinha(linha, nomeFiltro) {
+        const indice = colunas[nomeFiltro];
+
+        if (!linha || !linha.cells[indice]) {
+            return "";
+        }
+
+        return normalizar(linha.cells[indice].textContent);
+    }
+
+    function valoresUnicos(linhas, nomeFiltro) {
+        const conjunto = new Set();
+
+        linhas.forEach(function (linha) {
+            const valor = valorDaLinha(linha, nomeFiltro);
+
+            if (valor) {
+                conjunto.add(valor);
+            }
         });
 
-        // Mantém a primeira opção ("Todos", "Todas" etc.).
-        const primeiraOpcao = select.options[0];
-        select.replaceChildren(primeiraOpcao);
+        return Array.from(conjunto).sort(function (a, b) {
+            return a.localeCompare(b, "pt-BR");
+        });
+    }
 
-        [...valores]
-            .sort((a, b) => a.localeCompare(b, "pt-BR"))
-            .forEach(valor => {
-                const opcao = document.createElement("option");
-                opcao.value = valor;
-                opcao.textContent = valor;
-                select.appendChild(opcao);
+    function valoresSelecionados(select) {
+        return Array.from(select.selectedOptions)
+            .map(function (opcao) {
+                return opcao.value;
+            })
+            .filter(function (valor) {
+                return valor !== "";
             });
-    });
-}
+    }
 
-// Retorna apenas os valores realmente selecionados.
-function valoresSelecionados(select) {
-    return Array.from(select.selectedOptions)
-        .map(opcao => opcao.value)
-        .filter(valor => valor !== "");
-}
+    function selecionarValores(select, valores) {
+        const conjunto = new Set(valores);
 
-// Aplica todos os filtros simultaneamente.
-function aplicarFiltros() {
-    const selecionados = {};
+        Array.from(select.options).forEach(function (opcao) {
+            opcao.selected = conjunto.has(opcao.value);
+        });
+    }
 
-    Object.entries(filtros).forEach(([nome, select]) => {
-        selecionados[nome] = valoresSelecionados(select);
-    });
+    /* -----------------------------------------------------
+       11.3. CRIAÇÃO DAS OPÇÕES DOS FILTROS
+    ----------------------------------------------------- */
 
-    const linhas = document.querySelectorAll(
-        "#tabelaContainer tbody tr:not(.linha-detalhes)"
-    );
+    function preencherSelect(select, valores, textoInicial, valorInicial) {
+        const valoresAnteriores = valoresSelecionados(select);
 
-    let totalVisivel = 0;
+        select.replaceChildren();
 
-    linhas.forEach(linha => {
-        // Ignora a linha "Nenhum registro encontrado".
-        if (linha.cells.length < 8) {
-            linha.style.display = "";
+        const primeiraOpcao = document.createElement("option");
+        primeiraOpcao.value = valorInicial || "";
+        primeiraOpcao.textContent = textoInicial;
+
+        select.appendChild(primeiraOpcao);
+
+        valores.forEach(function (valor) {
+            const opcao = document.createElement("option");
+
+            opcao.value = valor;
+            opcao.textContent = valor;
+
+            select.appendChild(opcao);
+        });
+
+        /*
+           Preserva somente valores que continuam disponíveis.
+           A opção inicial especial não é misturada às opções comuns.
+        */
+
+        const valoresValidos = valoresAnteriores.filter(function (valor) {
+            return valores.includes(valor);
+        });
+
+        selecionarValores(select, valoresValidos);
+    }
+
+    function iniciarFiltros() {
+        const linhas = obterLinhas();
+
+        preencherSelect(
+            filtros.ddd,
+            valoresUnicos(linhas, "ddd"),
+            "Todos os DDDs",
+            ""
+        );
+
+        preencherSelect(
+            filtros.uf,
+            valoresUnicos(linhas, "uf"),
+            "Todas as UFs",
+            VALOR_TODAS_UFS
+        );
+
+        filtros.cidade.replaceChildren(
+            new Option("Selecione primeiro a UF", "")
+        );
+
+        filtros.bairro.replaceChildren(
+            new Option("Selecione primeiro a cidade", "")
+        );
+
+        filtros.cep.replaceChildren(
+            new Option("Selecione primeiro a cidade", "")
+        );
+
+        filtros.cidade.disabled = true;
+        filtros.bairro.disabled = true;
+        filtros.cep.disabled = true;
+
+        aplicarFiltros();
+    }
+
+    /* -----------------------------------------------------
+       11.4. FILTRO DE DDD — INDEPENDENTE DOS DEMAIS
+    ----------------------------------------------------- */
+
+    function correspondeDDD(linha, dddsSelecionados) {
+        if (dddsSelecionados.length === 0) {
+            return true;
+        }
+
+        return dddsSelecionados.includes(
+            valorDaLinha(linha, "ddd")
+        );
+    }
+
+    /* -----------------------------------------------------
+       11.5. FILTRO DE UF
+    ----------------------------------------------------- */
+
+    function obterUFsSelecionadas() {
+        const selecionadas = valoresSelecionados(filtros.uf);
+
+        /*
+           Se "Todas as UFs" estiver marcada, não restringe
+           as cidades por estado.
+        */
+
+        if (selecionadas.includes(VALOR_TODAS_UFS)) {
+            return [];
+        }
+
+        return selecionadas;
+    }
+
+    function todasAsUFsEstaoSelecionadas() {
+        return valoresSelecionados(filtros.uf)
+            .includes(VALOR_TODAS_UFS);
+    }
+
+    function linhaCorrespondeUF(linha, ufsSelecionadas) {
+        if (ufsSelecionadas.length === 0) {
+            return true;
+        }
+
+        return ufsSelecionadas.includes(
+            valorDaLinha(linha, "uf")
+        );
+    }
+
+    /* -----------------------------------------------------
+       11.6. FILTRO DE CIDADE
+    ----------------------------------------------------- */
+
+    function atualizarCidades() {
+        const linhas = obterLinhas();
+        const ufsSelecionadas = obterUFsSelecionadas();
+
+        if (
+            ufsSelecionadas.length === 0 &&
+            !todasAsUFsEstaoSelecionadas()
+        ) {
+            filtros.cidade.replaceChildren(
+                new Option("Selecione primeiro a UF", "")
+            );
+
+            filtros.cidade.disabled = true;
+            atualizarBairrosECeps();
             return;
         }
 
-        const corresponde = Object.entries(selecionados).every(
-            ([nome, valores]) => {
-                if (valores.length === 0) return true;
+        const linhasPermitidas = linhas.filter(function (linha) {
+            return linhaCorrespondeUF(linha, ufsSelecionadas);
+        });
 
-                const valorCelula = limparTexto(
-                    linha.cells[colunas[nome]].textContent
-                );
+        const cidades = valoresUnicos(linhasPermitidas, "cidade");
 
-                return valores.includes(valorCelula);
-            }
+        preencherSelect(
+            filtros.cidade,
+            cidades,
+            "Todas as cidades",
+            ""
         );
 
-        linha.style.display = corresponde ? "" : "none";
+        filtros.cidade.disabled = false;
 
-        if (corresponde) totalVisivel++;
-
-        // Oculta os detalhes quando o cadastro não corresponde.
-        const detalhes = linha.nextElementSibling;
-
-        if (
-            detalhes &&
-            detalhes.classList.contains("linha-detalhes") &&
-            !corresponde
-        ) {
-            detalhes.style.display = "none";
-        }
-    });
-
-    // Atualiza o contador, sem alterar o texto original do servidor.
-    const contador = document.getElementById("totalFiltrado");
-
-    if (contador) {
-        contador.textContent = totalVisivel;
+        atualizarBairrosECeps();
     }
-}
 
-// Limpa as seleções e mostra novamente todos os registros carregados.
-function limparFiltros() {
-    Object.values(filtros).forEach(select => {
-        Array.from(select.options).forEach(opcao => {
-            opcao.selected = false;
-        });
-    });
+    /* -----------------------------------------------------
+       11.7. FILTROS DE BAIRRO E CEP
+    ----------------------------------------------------- */
 
-    aplicarFiltros();
-}
+    function atualizarBairrosECeps() {
+        const linhas = obterLinhas();
+        const ufsSelecionadas = obterUFsSelecionadas();
+        const cidadesSelecionadas = valoresSelecionados(filtros.cidade);
 
-// Atualiza a lista de opções quando a página termina de carregar.
-preencherFiltros();
+        /*
+           Bairro e CEP dependem de uma cidade selecionada.
+           Se várias cidades forem selecionadas, as opções
+           abrangem as cidades selecionadas.
+        */
 
-// Também permite filtrar automaticamente ao selecionar uma opção.
-Object.values(filtros).forEach(select => {
-    select.addEventListener("change", aplicarFiltros);
-});
+        if (cidadesSelecionadas.length === 0) {
+            filtros.bairro.replaceChildren(
+                new Option("Selecione primeiro a cidade", "")
+            );
 
+            filtros.cep.replaceChildren(
+                new Option("Selecione primeiro a cidade", "")
+            );
 
-function valoresSelecionados(select) {
-    return Array.from(select.selectedOptions)
-        .map(option => option.value)
-        .filter(value => value !== "");
-}
+            filtros.bairro.disabled = true;
+            filtros.cep.disabled = true;
 
-function aplicarFiltros() {
-    const selecionados = {
-        ddd: valoresSelecionados(filtros.ddd),
-        uf: valoresSelecionados(filtros.uf),
-        bairro: valoresSelecionados(filtros.bairro),
-        cep: valoresSelecionados(filtros.cep)
-    };
-
-    const linhas = document.querySelectorAll(
-        "#tabelaContainer tbody tr:not(.linha-detalhes)"
-    );
-
-    linhas.forEach(linha => {
-        const celulas = linha.cells;
-
-        const ddd = celulas[3].textContent.trim();
-        const uf = celulas[4].textContent.trim();
-        const bairro = celulas[6].textContent.trim();
-        const cep = celulas[7].textContent.trim();
-
-        const corresponde =
-            (!selecionados.ddd.length || selecionados.ddd.includes(ddd)) &&
-            (!selecionados.uf.length || selecionados.uf.includes(uf)) &&
-            (!selecionados.bairro.length || selecionados.bairro.includes(bairro)) &&
-            (!selecionados.cep.length || selecionados.cep.includes(cep));
-
-        linha.style.display = corresponde ? "" : "none";
-
-        const detalhes = linha.nextElementSibling;
-        if (detalhes && detalhes.classList.contains("linha-detalhes")) {
-            if (!corresponde) {
-                detalhes.style.display = "none";
-            }
+            return;
         }
-    });
-}
 
-function limparFiltros() {
-    Object.values(filtros).forEach(select => {
-        Array.from(select.options).forEach(option => {
-            option.selected = false;
+        const linhasPermitidas = linhas.filter(function (linha) {
+            const ufCorresponde = linhaCorrespondeUF(
+                linha,
+                ufsSelecionadas
+            );
+
+            const cidadeCorresponde = cidadesSelecionadas.includes(
+                valorDaLinha(linha, "cidade")
+            );
+
+            return ufCorresponde && cidadeCorresponde;
         });
+
+        const bairros = valoresUnicos(linhasPermitidas, "bairro");
+        const ceps = valoresUnicos(linhasPermitidas, "cep");
+
+        preencherSelect(
+            filtros.bairro,
+            bairros,
+            "Todos os bairros",
+            ""
+        );
+
+        preencherSelect(
+            filtros.cep,
+            ceps,
+            "Todos os CEPs",
+            ""
+        );
+
+        filtros.bairro.disabled = false;
+        filtros.cep.disabled = false;
+    }
+
+    /* -----------------------------------------------------
+       11.8. APLICAÇÃO CONJUNTA DOS FILTROS
+    ----------------------------------------------------- */
+
+    function aplicarFiltros() {
+        const dddsSelecionados = valoresSelecionados(filtros.ddd);
+        const ufsSelecionadas = obterUFsSelecionadas();
+        const cidadesSelecionadas = valoresSelecionados(filtros.cidade);
+        const bairrosSelecionados = valoresSelecionados(filtros.bairro);
+        const cepsSelecionados = valoresSelecionados(filtros.cep);
+
+        const linhas = obterLinhas();
+        let totalVisivel = 0;
+
+        linhas.forEach(function (linha) {
+            const corresponde =
+                correspondeDDD(linha, dddsSelecionados) &&
+
+                linhaCorrespondeUF(linha, ufsSelecionadas) &&
+
+                (
+                    cidadesSelecionadas.length === 0 ||
+                    cidadesSelecionadas.includes(
+                        valorDaLinha(linha, "cidade")
+                    )
+                ) &&
+
+                (
+                    bairrosSelecionados.length === 0 ||
+                    bairrosSelecionados.includes(
+                        valorDaLinha(linha, "bairro")
+                    )
+                ) &&
+
+                (
+                    cepsSelecionados.length === 0 ||
+                    cepsSelecionados.includes(
+                        valorDaLinha(linha, "cep")
+                    )
+                );
+
+            linha.style.display = corresponde ? "" : "none";
+
+            if (corresponde) {
+                totalVisivel++;
+            }
+        });
+
+        if (contador) {
+            contador.textContent = totalVisivel;
+        }
+    }
+
+    /* -----------------------------------------------------
+       11.9. LIMPEZA DOS FILTROS
+    ----------------------------------------------------- */
+
+    function limparFiltros() {
+        /*
+           Limpa DDD e UF. As cidades, bairros e CEPs são
+           reconstruídos conforme a hierarquia.
+        */
+
+        selecionarValores(filtros.ddd, []);
+        selecionarValores(filtros.uf, []);
+
+        filtros.cidade.replaceChildren(
+            new Option("Selecione primeiro a UF", "")
+        );
+
+        filtros.bairro.replaceChildren(
+            new Option("Selecione primeiro a cidade", "")
+        );
+
+        filtros.cep.replaceChildren(
+            new Option("Selecione primeiro a cidade", "")
+        );
+
+        filtros.cidade.disabled = true;
+        filtros.bairro.disabled = true;
+        filtros.cep.disabled = true;
+
+        aplicarFiltros();
+    }
+
+    /* -----------------------------------------------------
+       11.10. EVENTOS — ATUALIZAÇÃO AUTOMÁTICA
+    ----------------------------------------------------- */
+
+    filtros.ddd.addEventListener("change", function () {
+        aplicarFiltros();
     });
 
-    aplicarFiltros();
-}
+    filtros.uf.addEventListener("change", function () {
+        /*
+           Se "Todas as UFs" for marcada, desmarca as UFs
+           individuais. Se uma UF individual for marcada,
+           desmarca "Todas as UFs".
+        */
 
+        const selecionadas = valoresSelecionados(filtros.uf);
+
+        if (selecionadas.includes(VALOR_TODAS_UFS)) {
+            selecionarValores(filtros.uf, [VALOR_TODAS_UFS]);
+        }
+
+        atualizarCidades();
+        aplicarFiltros();
+    });
+
+    filtros.cidade.addEventListener("change", function () {
+        atualizarBairrosECeps();
+        aplicarFiltros();
+    });
+
+    filtros.bairro.addEventListener("change", function () {
+        aplicarFiltros();
+    });
+
+    filtros.cep.addEventListener("change", function () {
+        aplicarFiltros();
+    });
+
+    botaoAplicar.addEventListener("click", function () {
+        aplicarFiltros();
+    });
+
+    botaoLimpar.addEventListener("click", function () {
+        limparFiltros();
+    });
+
+    /* -----------------------------------------------------
+       11.11. INICIALIZAÇÃO
+    ----------------------------------------------------- */
+
+    iniciarFiltros();
+
+})();
 </script>
 
-        </main>
-        </body>
-        </html>
+</body>
+</html>
