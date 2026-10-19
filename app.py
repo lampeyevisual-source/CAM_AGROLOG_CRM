@@ -413,7 +413,7 @@ def base_detalhe(base_id):
         for registro in registros:
             dados = registro.get("dados") or {}
             for coluna in dados:
-                if coluna not in colunas:
+                if coluna != "acompanhamento" and coluna not in colunas:
                     colunas.append(coluna)
 
         return render_template(
@@ -429,7 +429,193 @@ def base_detalhe(base_id):
         app.logger.exception("Erro ao abrir detalhes da base")
         return f"Erro ao abrir a base: {erro}", 500
 
+
+@app.route("/base-detalhe/<string:base_id>/exportar")
+@exigir_login
+def exportar_base_csv(base_id):
+    try:
+        supabase = cliente_supabase()
+
+        resultado = (
+            supabase.table("bases_csv")
+            .select("*")
+            .eq("id", base_id)
+            .limit(1)
+            .execute()
+        )
+
+        if not resultado.data:
+            flash("Base não encontrada.")
+            return redirect(url_for("acessos"))
+
+        base = resultado.data[0]
+        registros = []
+        inicio = 0
+        tamanho_lote = 1000
+
+        while True:
+            resposta = (
+                supabase.table("base_registros")
+                .select("dados")
+                .eq("base_id", base_id)
+                .order("id")
+                .range(inicio, inicio + tamanho_lote - 1)
+                .execute()
+            )
+
+            lote = resposta.data or []
+            registros.extend(lote)
+
+            if len(lote) < tamanho_lote:
+                break
+
+            inicio += tamanho_lote
+
+        colunas = []
+
+        for registro in registros:
+            dados = registro.get("dados") or {}
+
+            if not isinstance(dados, dict):
+                continue
+
+            for coluna in dados:
+                if coluna != "acompanhamento" and coluna not in colunas:
+                    colunas.append(coluna)
+
+        for campo in CAMPOS_COMERCIAIS:
+            if campo not in colunas:
+                colunas.append(campo)
+
+        saida = io.StringIO(newline="")
+        escritor = csv.DictWriter(
+            saida,
+            fieldnames=colunas,
+            delimiter=";",
+            extrasaction="ignore"
+        )
+        escritor.writeheader()
+
+        for registro in registros:
+            dados = registro.get("dados") or {}
+
+            if not isinstance(dados, dict):
+                dados = {}
+
+            acompanhamento = dados.get("acompanhamento") or {}
+
+            if not isinstance(acompanhamento, dict):
+                acompanhamento = {}
+
+            linha = {
+                chave: valor
+                for chave, valor in dados.items()
+                if chave != "acompanhamento"
+            }
+
+            for campo in CAMPOS_COMERCIAIS:
+                valor = acompanhamento.get(campo, "")
+
+                if campo == "visitou":
+                    if valor is True:
+                        valor = "Sim"
+                    elif valor is False:
+                        valor = "Não"
+                    else:
+                        valor = ""
+
+                linha[campo] = valor if valor is not None else ""
+
+            escritor.writerow(linha)
+
+        memoria = io.BytesIO(saida.getvalue().encode("utf-8-sig"))
+        memoria.seek(0)
+
+        nome = secure_filename(
+            str(base.get("nome") or "base")
+        ) or "base"
+
+        return send_file(
+            memoria,
+            mimetype="text/csv; charset=utf-8",
+            as_attachment=True,
+            download_name=f"{nome}_atualizado.csv"
+        )
+
+    except Exception as erro:
+        app.logger.exception("Erro ao exportar base %s", base_id)
+        return f"Erro ao exportar base: {erro}", 500
+
+
+@app.route("/base/<string:base_id>/excluir", methods=["POST"])
+@exigir_login
+def excluir_base(base_id):
+    try:
+        supabase = cliente_supabase()
+
+        resultado = (
+            supabase.table("bases_csv")
+            .select("*")
+            .eq("id", base_id)
+            .limit(1)
+            .execute()
+        )
+
+        if not resultado.data:
+            flash("Base não encontrada.")
+            return redirect(url_for("acessos"))
+
+        base = resultado.data[0]
+        area = base.get("area")
+
+        if area not in AREAS_CAM:
+            flash("Área da base inválida.")
+            return redirect(url_for("acessos"))
+
+        pasta = f"{area}/{base_id}"
+
+        arquivos = (
+            supabase.storage
+            .from_("bases-csv")
+            .list(pasta)
+        )
+
+        caminhos = [
+            f"{pasta}/{arquivo['name']}"
+            for arquivo in (arquivos or [])
+            if arquivo.get("name")
+        ]
+
+        # Se falhar a remoção dos arquivos, a exceção impede
+        # que o código prossiga silenciosamente.
+        if caminhos:
+            supabase.storage.from_("bases-csv").remove(caminhos)
+
+        (
+            supabase.table("base_registros")
+            .delete()
+            .eq("base_id", base_id)
+            .execute()
+        )
+
+        (
+            supabase.table("bases_csv")
+            .delete()
+            .eq("id", base_id)
+            .execute()
+        )
+
+        flash("Base excluída com sucesso.")
+        return redirect(url_for("bases", area=area))
+
+    except Exception as erro:
+        app.logger.exception("Erro ao excluir base %s", base_id)
+        flash(f"Não foi possível excluir a base: {erro}")
+        return redirect(url_for("acessos"))
+
+
 @app.route("/base-registro/<int:registro_id>", methods=["GET", "POST"])
+@exigir_login
 def registro_editar(registro_id):
     try:
         supabase = cliente_supabase()
@@ -452,7 +638,6 @@ def registro_editar(registro_id):
         if not isinstance(dados, dict):
             dados = {}
 
-        # Dados do acompanhamento comercial
         acompanhamento = dados.get("acompanhamento", {})
 
         if not isinstance(acompanhamento, dict):
@@ -464,7 +649,6 @@ def registro_editar(registro_id):
                 for campo in CAMPOS_COMERCIAIS
             }
 
-            # Corrige a leitura do campo "Visitou a empresa?"
             visitou = request.form.get("visitou", "").strip().lower()
 
             if visitou in ("sim", "true", "1"):
@@ -478,21 +662,18 @@ def registro_editar(registro_id):
 
             if valor:
                 try:
-                    valor_normalizado = valor.replace(" ", "")
+                    normalizado = valor.replace(" ", "")
 
-                    if "," in valor_normalizado:
-                        valor_normalizado = (
-                            valor_normalizado
-                            .replace(".", "")
+                    if "," in normalizado:
+                        normalizado = (
+                            normalizado.replace(".", "")
                             .replace(",", ".")
                         )
 
-                    atualizacoes["valor_ultima_compra"] = float(
-                        valor_normalizado
-                    )
+                    atualizacoes["valor_ultima_compra"] = float(normalizado)
 
                 except ValueError:
-                    flash("Valor da compra inválido.")
+                    flash("Valor da última compra inválido.")
                     return redirect(
                         url_for(
                             "registro_editar",
@@ -504,14 +685,19 @@ def registro_editar(registro_id):
                 datetime.now().astimezone().isoformat()
             )
 
+            # Salva os campos comerciais dentro de dados,
+            # sem sobrescrever as colunas originais do CSV.
+            dados["acompanhamento"] = atualizacoes
+
             (
                 supabase.table("base_registros")
-                .update(atualizacoes)
+                .update({"dados": dados})
                 .eq("id", registro_id)
                 .execute()
             )
 
-            flash("Dados comerciais salvos.")
+            flash("Dados comerciais salvos com sucesso.")
+
             return redirect(
                 url_for(
                     "registro_editar",
@@ -519,8 +705,6 @@ def registro_editar(registro_id):
                 )
             )
 
-        # Monta os grupos para exibição dos dados cadastrais.
-        # Os nomes e campos devem corresponder à estrutura de dados da base.
         grupos = []
 
         for chave, valor in dados.items():
@@ -530,14 +714,22 @@ def registro_editar(registro_id):
             if isinstance(valor, dict):
                 itens = list(valor.items())
                 if itens:
-                    grupos.append((chave.replace("_", " ").title(), itens))
+                    grupos.append((
+                        chave.replace("_", " ").title(),
+                        itens
+                    ))
+
             elif isinstance(valor, list):
                 itens = [
                     (str(i + 1), item)
                     for i, item in enumerate(valor)
                 ]
                 if itens:
-                    grupos.append((chave.replace("_", " ").title(), itens))
+                    grupos.append((
+                        chave.replace("_", " ").title(),
+                        itens
+                    ))
+
             else:
                 grupos.append((
                     chave.replace("_", " ").title(),
