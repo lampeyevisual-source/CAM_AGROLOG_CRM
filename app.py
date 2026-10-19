@@ -1,20 +1,27 @@
+
 import csv
 import io
 import os
 import re
-import hashlib
 from datetime import datetime
 from functools import wraps
-from pathlib import Path
-from werkzeug.utils import secure_filename
+
 from flask import (
-    Flask, render_template, render_template_string, request,
-    redirect, url_for, flash, session, send_file
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    flash,
+    session,
+    send_file,
 )
-from supabase import create_client, Client
+from supabase import create_client
+
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "troque-esta-chave-no-render")
+app.secret_key = os.getenv("SECRET_KEY", "troque-esta-chave-no-render")
+
 
 CAMPOS_COMERCIAIS = [
     "status_comercial",
@@ -28,137 +35,364 @@ CAMPOS_COMERCIAIS = [
 ]
 
 
-def normalizar_cnpj(valor):
-    return re.sub(r"\D", "", str(valor or ""))
+AREAS_CAM = {
+    "agrolog": {
+        "nome": "CAM AGROLOG",
+        "descricao": "Compra e venda de grãos.",
+    },
+    "distribuicao": {
+        "nome": "CAM DISTRIBUIÇÃO",
+        "descricao": "Clientes de ovos e outras mercadorias.",
+    },
+    "agrologistica": {
+        "nome": "CAM AGROLOGÍSTICA",
+        "descricao": "Fretes, caminhoneiros e transportadoras.",
+    },
+}
 
 
-def cliente_supabase() -> Client:
-    url = os.environ.get("SUPABASE_URL", "").strip()
-    chave = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+# =========================================================
+# SUPABASE
+# =========================================================
+
+def cliente_supabase():
+    url = os.getenv("SUPABASE_URL")
+    chave = (
+        os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        or os.getenv("SUPABASE_KEY")
+    )
 
     if not url or not chave:
         raise RuntimeError(
-            "Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY no Render."
+            "Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY "
+            "nas variáveis de ambiente."
         )
 
     return create_client(url, chave)
 
 
-def exigir_login(view):
-    @wraps(view)
+def exigir_login(func):
+    @wraps(func)
     def wrapper(*args, **kwargs):
         if not session.get("crm_autorizado"):
             return redirect(url_for("login"))
-        return view(*args, **kwargs)
+
+        return func(*args, **kwargs)
 
     return wrapper
 
+
+def carregar_base(base_id):
+    resposta = (
+        cliente_supabase()
+        .table("bases_csv")
+        .select("*")
+        .eq("id", base_id)
+        .limit(1)
+        .execute()
+    )
+
+    return resposta.data[0] if resposta.data else None
+
+
+def carregar_registros(base_id, limite=10000):
+    resposta = (
+        cliente_supabase()
+        .table("base_registros")
+        .select("*")
+        .eq("base_id", base_id)
+        .order("id")
+        .limit(limite)
+        .execute()
+    )
+
+    return resposta.data or []
+
+
+# =========================================================
+# LEITURA E TRATAMENTO DO CSV
+# =========================================================
+
+def parse_csv_upload(arquivo):
+    conteudo = arquivo.read()
+
+    if not conteudo:
+        raise ValueError("O arquivo está vazio.")
+
+    texto = None
+
+    for encoding in ("utf-8-sig", "cp1252", "latin-1"):
+        try:
+            texto = conteudo.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+
+    if texto is None:
+        raise ValueError(
+            "Não foi possível ler a codificação do arquivo CSV."
+        )
+
+    amostra = texto[:8192]
+
+    try:
+        dialeto = csv.Sniffer().sniff(
+            amostra,
+            delimiters=";,\t|",
+        )
+        delimitador = dialeto.delimiter
+
+    except csv.Error:
+        primeira_linha = (
+            amostra.splitlines()[0]
+            if amostra.splitlines()
+            else ""
+        )
+
+        delimitador = max(
+            (",", ";", "\t", "|"),
+            key=primeira_linha.count,
+        )
+
+    leitor = csv.DictReader(
+        io.StringIO(texto),
+        delimiter=delimitador,
+    )
+
+    if not leitor.fieldnames:
+        raise ValueError(
+            "O CSV precisa ter uma primeira linha com os nomes das colunas."
+        )
+
+    campos = [
+        str(campo or "").strip()
+        for campo in leitor.fieldnames
+    ]
+
+    if not any(campos):
+        raise ValueError(
+            "Não foram encontrados nomes de colunas no CSV."
+        )
+
+    linhas = []
+
+    for linha in leitor:
+        registro = {}
+
+        for original, campo in zip(leitor.fieldnames, campos):
+            if campo:
+                valor = linha.get(original, "")
+                registro[campo] = (
+                    str(valor).strip()
+                    if valor is not None
+                    else ""
+                )
+
+        if any(str(valor).strip() for valor in registro.values()):
+            linhas.append(registro)
+
+    if not linhas:
+        raise ValueError(
+            "O CSV não contém registros para importar."
+        )
+
+    return linhas
+
+
+def identificar_registro(dados):
+    preferidos = (
+        "cnpj",
+        "cpf",
+        "documento",
+        "telefone",
+        "telefone_1",
+        "celular",
+        "email",
+        "e-mail",
+        "id",
+        "codigo",
+        "nome_fantasia",
+        "razao_social",
+        "nome",
+    )
+
+    normalizados = {
+        re.sub(r"[^a-z0-9]", "", str(chave).lower()): chave
+        for chave in dados
+    }
+
+    for nome in preferidos:
+        chave_normalizada = re.sub(
+            r"[^a-z0-9]",
+            "",
+            nome.lower(),
+        )
+
+        if chave_normalizada in normalizados:
+            chave_original = normalizados[chave_normalizada]
+            valor = str(dados.get(chave_original, "")).strip()
+
+            if valor:
+                return valor
+
+    for valor in dados.values():
+        if str(valor).strip():
+            return str(valor).strip()
+
+    return "sem-identificador"
+
+
+# =========================================================
+# DADOS COMERCIAIS E FICHA DA EMPRESA
+# =========================================================
+
+def acompanhamento_do(registro):
+    dados = registro.get("dados") or {}
+    acompanhamento = dados.get("acompanhamento") or {}
+
+    resultado = {
+        campo: acompanhamento.get(campo, "")
+        for campo in CAMPOS_COMERCIAIS
+    }
+
+    resultado["atualizado_em"] = acompanhamento.get(
+        "atualizado_em",
+        "",
+    )
+
+    return resultado
+
+
+def montar_grupos(empresa):
+    grupos_campos = [
+        (
+            "Identificação",
+            [
+                "cnpj",
+                "identificador_matriz_filial",
+                "razao_social",
+                "nome_fantasia",
+                "situacao_cadastral",
+                "data_inicio_atividade",
+            ],
+        ),
+        (
+            "Contato",
+            [
+                "ddd_1",
+                "telefone_1",
+                "ddd_2",
+                "telefone_2",
+                "email",
+            ],
+        ),
+        (
+            "Endereço",
+            [
+                "tipo_logradouro",
+                "logradouro",
+                "numero",
+                "complemento",
+                "bairro",
+                "cep",
+                "municipio",
+                "codigo_municipio",
+                "uf",
+            ],
+        ),
+        ("Informações adicionais", None),
+    ]
+
+    chaves_usadas = set()
+    grupos = []
+
+    for titulo, chaves in grupos_campos:
+        if chaves is None:
+            itens = [
+                (chave, valor)
+                for chave, valor in empresa.items()
+                if chave not in chaves_usadas
+                and chave != "acompanhamento"
+                and str(valor or "").strip()
+            ]
+        else:
+            itens = [
+                (
+                    chave.replace("_", " ").title(),
+                    empresa.get(chave, ""),
+                )
+                for chave in chaves
+                if chave in empresa
+            ]
+
+            chaves_usadas.update(chaves)
+
+        if itens:
+            grupos.append((titulo, itens))
+
+    return grupos
+
+
+# =========================================================
+# INÍCIO E LOGIN
+# =========================================================
+
+@app.route("/")
+def raiz():
+    if session.get("crm_autorizado"):
+        return redirect(url_for("acessos"))
+
+    return redirect(url_for("login"))
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    senha_configurada = os.environ.get("CRM_ACCESS_PASSWORD", "")
     erro = None
+    senha_configurada = os.getenv("CRM_ACCESS_PASSWORD")
 
     if request.method == "POST":
-        senha_informada = request.form.get("senha", "")
+        senha_digitada = request.form.get("senha", "")
 
         if not senha_configurada:
-            erro = "Configure CRM_ACCESS_PASSWORD no Render."
-        elif senha_informada == senha_configurada:
+            erro = (
+                "A senha de acesso não está configurada no servidor. "
+                "Configure CRM_ACCESS_PASSWORD."
+            )
+
+        elif senha_digitada and senha_digitada == senha_configurada:
+            session.clear()
             session["crm_autorizado"] = True
+
             return redirect(url_for("acessos"))
+
         else:
             erro = "Senha incorreta."
 
     return render_template("login.html", erro=erro)
+
 
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
 
-AREAS_CAM = {
-    "agrolog": {
-        "nome": "CAM AGROLOG",
-        "descricao": "Compra e venda de grãos."
-    },
-    "distribuicao": {
-        "nome": "CAM DISTRIBUIÇÃO",
-        "descricao": "Clientes de ovos e outras mercadorias."
-    },
-    "agrologistica": {
-        "nome": "CAM AGROLOGÍSTICA",
-        "descricao": "Fretes, caminhoneiros e transportadoras."
-    }
-}
 
+# =========================================================
+# TELA DE ACESSOS
+# =========================================================
 
 @app.route("/acessos")
 @exigir_login
 def acessos():
-    return render_template("acessos.html")
+    return render_template(
+        "acessos.html",
+        areas=AREAS_CAM,
+    )
 
 
-
-def ler_csv_upload(arquivo):
-    conteudo = arquivo.read().decode("utf-8-sig", errors="replace")
-
-    amostra = conteudo[:10000]
-    try:
-        dialeto = csv.Sniffer().sniff(
-            amostra, delimiters=";,\t|,"
-        )
-        leitor = csv.DictReader(
-            io.StringIO(conteudo), dialect=dialeto
-        )
-    except csv.Error:
-        leitor = csv.DictReader(
-            io.StringIO(conteudo), delimiter=";"
-        )
-
-    if not leitor.fieldnames:
-        raise ValueError("O CSV precisa ter uma linha de cabeçalho.")
-
-    cabecalhos = [
-        str(campo).strip() if campo else ""
-        for campo in leitor.fieldnames
-    ]
-
-    if not any(cabecalhos):
-        raise ValueError("O CSV não possui colunas válidas.")
-
-    leitor.fieldnames = cabecalhos
-    linhas = []
-
-    for linha in leitor:
-        dados = {
-            str(chave).strip(): str(valor or "").strip()
-            for chave, valor in linha.items()
-            if chave and str(chave).strip()
-        }
-
-        if any(dados.values()):
-            linhas.append(dados)
-
-    if not linhas:
-        raise ValueError("O CSV não contém registros.")
-
-    return linhas
-
-
-def identificar_registro(dados):
-    for chave, valor in dados.items():
-        nome = re.sub(r"[^a-z0-9]", "", chave.lower())
-
-        if nome in ("cnpj", "cpfcnpj", "telefone", "telefone1",
-                    "contato1", "celular", "identificador"):
-            if valor:
-                return str(valor)
-
-    for valor in dados.values():
-        if valor:
-            return str(valor)
-
-    return ""
+# =========================================================
+# LISTAGEM DAS BASES
+# =========================================================
 
 @app.route("/bases/<area>")
 @exigir_login
@@ -168,862 +402,476 @@ def bases(area):
         return redirect(url_for("acessos"))
 
     try:
+        db = cliente_supabase()
+
         resposta = (
-            cliente_supabase()
-            .table("bases_csv")
+            db.table("bases_csv")
             .select("*")
             .eq("area", area)
             .order("criado_em", desc=True)
+            .limit(1000)
             .execute()
         )
 
         lista_bases = resposta.data or []
 
-    except Exception as erro:
-        return f"Erro ao consultar as bases: {erro}", 500
+        for base in lista_bases:
+            try:
+                total = (
+                    db.table("base_registros")
+                    .select("id", count="exact")
+                    .eq("base_id", base["id"])
+                    .limit(1)
+                    .execute()
+                )
 
-    return render_template(
-        "bases.html",
-        area=AREAS_CAM[area],
-        chave_area=area,
-        lista_bases=lista_bases
-    )
+                base["total_registros"] = (
+                    getattr(total, "count", None) or 0
+                )
+
+            except Exception:
+                base["total_registros"] = 0
+
+        return render_template(
+            "base.html",
+            area=AREAS_CAM[area],
+            chave_area=area,
+            lista_bases=lista_bases,
+        )
+
+    except Exception as exc:
+        app.logger.exception("Erro ao carregar bases")
+
+        flash(f"Não foi possível carregar as bases: {exc}")
+
+        return render_template(
+            "base.html",
+            area=AREAS_CAM[area],
+            chave_area=area,
+            lista_bases=[],
+        )
+
+
+# =========================================================
+# IMPORTAÇÃO DE UMA BASE CSV
+# =========================================================
 
 @app.route("/bases/<area>/importar", methods=["POST"])
 @exigir_login
 def importar_base(area):
-    import hashlib
-    import io
-
     if area not in AREAS_CAM:
         flash("Área não encontrada.")
         return redirect(url_for("acessos"))
 
-    arquivo = request.files.get("arquivo")
     nome = request.form.get("nome", "").strip()
+    arquivo = request.files.get("arquivo")
 
-    if not arquivo or not arquivo.filename or not nome:
-        flash("Informe o nome da base e selecione um CSV.")
+    if not nome or not arquivo or not arquivo.filename:
+        flash("Informe o nome da base e selecione um arquivo CSV.")
         return redirect(url_for("bases", area=area))
 
     base_id = None
-    supabase = None
 
     try:
-        nome_arquivo = secure_filename(arquivo.filename)
+        linhas = parse_csv_upload(arquivo)
+        db = cliente_supabase()
 
-        if not nome_arquivo:
-            raise ValueError("Nome de arquivo inválido.")
+        agora = datetime.utcnow().isoformat()
 
-        # Lê o arquivo e calcula a assinatura do conteúdo.
-        conteudo_csv = arquivo.read()
-        checksum = hashlib.sha256(conteudo_csv).hexdigest()
-
-        if not conteudo_csv:
-            raise ValueError("O arquivo CSV está vazio.")
-
-        # Lê o CSV antes de criar ou alterar a base.
-        linhas = ler_csv_upload(io.BytesIO(conteudo_csv))
-
-        if not linhas:
-            raise ValueError("O CSV não contém registros para importar.")
-
-        supabase = cliente_supabase()
-
-        # Procura o mesmo conteúdo na mesma área.
-        existente = (
-            supabase.table("bases_csv")
-            .select("id,nome,status_importacao")
-            .eq("area", area)
-            .eq("checksum_csv", checksum)
-            .limit(1)
+        resposta = (
+            db.table("bases_csv")
+            .insert(
+                {
+                    "nome": nome,
+                    "area": area,
+                    "criado_em": agora,
+                }
+            )
             .execute()
         )
 
-        if existente.data:
-            base = existente.data[0]
-            base_id = base["id"]
-
-            if base.get("status_importacao") == "concluida":
-                flash(
-                    f"Este CSV já foi importado. "
-                    f"Base existente: {base['nome']}."
-                )
-                return redirect(url_for("bases", area=area))
-
-            # A base existe, mas não foi concluída.
-            # Reinicia somente os registros vinculados a ela.
-            supabase.table("bases_csv").update({
-                "status_importacao": "em_andamento"
-            }).eq("id", base_id).execute()
-
-            supabase.table("base_registros") \
-                .delete() \
-                .eq("base_id", base_id) \
-                .execute()
-
-        else:
-            # Cria uma nova base.
-            criada = (
-                supabase.table("bases_csv")
-                .insert({
-                    "area": area,
-                    "nome": nome,
-                    "arquivo_original": arquivo.filename,
-                    "total_registros": len(linhas),
-                    "checksum_csv": checksum,
-                    "status_importacao": "em_andamento"
-                })
-                .execute()
+        if not resposta.data:
+            raise RuntimeError(
+                "O Supabase não retornou a base criada."
             )
 
-            if not criada.data:
-                raise RuntimeError(
-                    "Não foi possível cadastrar a base no Supabase."
-                )
+        base_id = resposta.data[0]["id"]
 
-            base_id = criada.data[0]["id"]
+        payload = [
+            {
+                "base_id": base_id,
+                "identificador": identificar_registro(linha),
+                "dados": linha,
+            }
+            for linha in linhas
+        ]
 
-        # Guarda o CSV original no Supabase Storage.
-        caminho_storage = f"{area}/{base_id}/{nome_arquivo}"
-
-        try:
-            supabase.storage.from_("bases-csv").upload(
-                path=caminho_storage,
-                file=conteudo_csv,
-                file_options={
-                    "content-type": "text/csv",
-                    "upsert": "true"
-                }
-            )
-        except Exception:
-            # Tenta atualizar o arquivo caso ele já exista.
-            supabase.storage.from_("bases-csv").update(
-                path=caminho_storage,
-                file=conteudo_csv,
-                file_options={"content-type": "text/csv"}
-            )
-
-        # Importa em lotes de 200 registros.
-        for inicio in range(0, len(linhas), 200):
-            lote = [
-                {
-                    "base_id": base_id,
-                    "identificador": identificar_registro(dados),
-                    "dados": dados
-                }
-                for dados in linhas[inicio:inicio + 200]
-            ]
-
-            if lote:
-                (
-                    supabase.table("base_registros")
-                    .insert(lote)
-                    .execute()
-                )
-
-        # Marca como concluída somente após todos os lotes.
-        supabase.table("bases_csv").update({
-            "status_importacao": "concluida"
-        }).eq("id", base_id).execute()
+        for inicio in range(0, len(payload), 500):
+            db.table("base_registros").insert(
+                payload[inicio:inicio + 500]
+            ).execute()
 
         flash(
             f"Base importada com sucesso: {len(linhas)} registros."
         )
 
-    except Exception as erro:
-        app.logger.exception("Erro ao importar base CSV")
+        return redirect(url_for("bases", area=area))
 
-        if base_id and supabase:
+    except Exception as exc:
+        app.logger.exception("Erro na importação CSV")
+
+        # Se a base foi criada mas a importação dos registros falhou,
+        # tenta remover os dados parciais para não deixar uma base vazia.
+        if base_id is not None:
             try:
-                supabase.table("bases_csv").update({
-                    "status_importacao": "erro"
-                }).eq("id", base_id).execute()
+                db = cliente_supabase()
+                db.table("base_registros").delete().eq(
+                    "base_id", base_id
+                ).execute()
+                db.table("bases_csv").delete().eq(
+                    "id", base_id
+                ).execute()
             except Exception:
                 app.logger.exception(
-                    "Não foi possível atualizar o status da base."
+                    "Não foi possível limpar a importação incompleta."
                 )
 
-        flash(
-            "A importação não foi concluída. "
-            "Confira os logs do Render antes de tentar novamente. "
-            f"Detalhe: {erro}"
-        )
-
-    return redirect(url_for("bases", area=area))
+        flash(f"Falha ao importar o CSV: {exc}")
+        return redirect(url_for("bases", area=area))
 
 
-@app.route("/base-detalhe/<string:base_id>")
+# =========================================================
+# DETALHES DA BASE
+# =========================================================
+
+@app.route("/base/<int:base_id>")
 @exigir_login
 def base_detalhe(base_id):
     try:
-        supabase = cliente_supabase()
+        base = carregar_base(base_id)
 
-        # Busca a base selecionada.
-        resultado = (
-            supabase.table("bases_csv")
-            .select("*")
-            .eq("id", base_id)
-            .limit(1)
-            .execute()
-        )
-
-        if not resultado.data:
+        if not base:
             flash("Base não encontrada.")
             return redirect(url_for("acessos"))
 
-        base = resultado.data[0]
+        registros_originais = carregar_registros(base_id)
+        q = request.args.get("q", "").strip().lower()
 
-        # Pesquisa textual.
-        q = request.args.get("q", "").strip()
-
-        # Carrega TODOS os registros em lotes de 1.000.
         registros = []
-        tamanho_lote = 1000
-        inicio = 0
 
-        while True:
-            resposta = (
-                supabase.table("base_registros")
-                .select("*")
-                .eq("base_id", base_id)
-                .order("id")
-                .range(inicio, inicio + tamanho_lote - 1)
-                .execute()
-            )
+        for original in registros_originais:
+            registro = dict(original)
+            dados = dict(registro.get("dados") or {})
 
-            lote = resposta.data or []
-            registros.extend(lote)
+            acompanhamento = dados.pop("acompanhamento", {}) or {}
+            registro["dados"] = dados
 
-            if len(lote) < tamanho_lote:
-                break
+            for campo in CAMPOS_COMERCIAIS:
+                registro[campo] = acompanhamento.get(campo, "")
 
-            inicio += tamanho_lote
+            if q:
+                partes = [
+                    str(registro.get("identificador", "")),
+                ]
 
-        # Aplica a pesquisa sobre todos os registros carregados.
-        if q:
-            termo = q.casefold()
-            registros = [
-                registro for registro in registros
-                if termo in str(registro.get("dados") or {}).casefold()
-            ]
+                for chave, valor in dados.items():
+                    partes.append(str(chave))
+                    partes.append(str(valor))
 
-        # Descobre as colunas originais do CSV.
-        colunas = []
-        for registro in registros:
-            dados = registro.get("dados") or {}
-            for coluna in dados:
-                if coluna != "acompanhamento" and coluna not in colunas:
-                    colunas.append(coluna)
+                texto = " ".join(partes).lower()
+
+                if q not in texto:
+                    continue
+
+            registros.append(registro)
 
         return render_template(
             "base_detalhe.html",
             base=base,
             areas=AREAS_CAM,
             registros=registros,
-            colunas=colunas,
-            q=q
+            q=q,
         )
 
-    except Exception as erro:
+    except Exception as exc:
         app.logger.exception("Erro ao abrir detalhes da base")
-        return f"Erro ao abrir a base: {erro}", 500
-
-
-@app.route("/base-detalhe/<string:base_id>/exportar")
-@exigir_login
-def exportar_base_csv(base_id):
-    try:
-        supabase = cliente_supabase()
-
-        resultado = (
-            supabase.table("bases_csv")
-            .select("*")
-            .eq("id", base_id)
-            .limit(1)
-            .execute()
-        )
-
-        if not resultado.data:
-            flash("Base não encontrada.")
-            return redirect(url_for("acessos"))
-
-        base = resultado.data[0]
-        registros = []
-        inicio = 0
-        tamanho_lote = 1000
-
-        while True:
-            resposta = (
-                supabase.table("base_registros")
-                .select("dados")
-                .eq("base_id", base_id)
-                .order("id")
-                .range(inicio, inicio + tamanho_lote - 1)
-                .execute()
-            )
-
-            lote = resposta.data or []
-            registros.extend(lote)
-
-            if len(lote) < tamanho_lote:
-                break
-
-            inicio += tamanho_lote
-
-        colunas = []
-
-        for registro in registros:
-            dados = registro.get("dados") or {}
-
-            if not isinstance(dados, dict):
-                continue
-
-            for coluna in dados:
-                if coluna != "acompanhamento" and coluna not in colunas:
-                    colunas.append(coluna)
-
-        for campo in CAMPOS_COMERCIAIS:
-            if campo not in colunas:
-                colunas.append(campo)
-
-        saida = io.StringIO(newline="")
-        escritor = csv.DictWriter(
-            saida,
-            fieldnames=colunas,
-            delimiter=";",
-            extrasaction="ignore"
-        )
-        escritor.writeheader()
-
-        for registro in registros:
-            dados = registro.get("dados") or {}
-
-            if not isinstance(dados, dict):
-                dados = {}
-
-            acompanhamento = dados.get("acompanhamento") or {}
-
-            if not isinstance(acompanhamento, dict):
-                acompanhamento = {}
-
-            linha = {
-                chave: valor
-                for chave, valor in dados.items()
-                if chave != "acompanhamento"
-            }
-
-            for campo in CAMPOS_COMERCIAIS:
-                valor = acompanhamento.get(campo, "")
-
-                if campo == "visitou":
-                    if valor is True:
-                        valor = "Sim"
-                    elif valor is False:
-                        valor = "Não"
-                    else:
-                        valor = ""
-
-                linha[campo] = valor if valor is not None else ""
-
-            escritor.writerow(linha)
-
-        memoria = io.BytesIO(saida.getvalue().encode("utf-8-sig"))
-        memoria.seek(0)
-
-        nome = secure_filename(
-            str(base.get("nome") or "base")
-        ) or "base"
-
-        return send_file(
-            memoria,
-            mimetype="text/csv; charset=utf-8",
-            as_attachment=True,
-            download_name=f"{nome}_atualizado.csv"
-        )
-
-    except Exception as erro:
-        app.logger.exception("Erro ao exportar base %s", base_id)
-        return f"Erro ao exportar base: {erro}", 500
-
-
-@app.route("/base/<string:base_id>/excluir", methods=["POST"])
-@exigir_login
-def excluir_base(base_id):
-    try:
-        supabase = cliente_supabase()
-
-        resultado = (
-            supabase.table("bases_csv")
-            .select("*")
-            .eq("id", base_id)
-            .limit(1)
-            .execute()
-        )
-
-        if not resultado.data:
-            flash("Base não encontrada.")
-            return redirect(url_for("acessos"))
-
-        base = resultado.data[0]
-        area = base.get("area")
-
-        if area not in AREAS_CAM:
-            flash("Área da base inválida.")
-            return redirect(url_for("acessos"))
-
-        pasta = f"{area}/{base_id}"
-
-        arquivos = (
-            supabase.storage
-            .from_("bases-csv")
-            .list(pasta)
-        )
-
-        caminhos = [
-            f"{pasta}/{arquivo['name']}"
-            for arquivo in (arquivos or [])
-            if arquivo.get("name")
-        ]
-
-        # Se falhar a remoção dos arquivos, a exceção impede
-        # que o código prossiga silenciosamente.
-        if caminhos:
-            supabase.storage.from_("bases-csv").remove(caminhos)
-
-        (
-            supabase.table("base_registros")
-            .delete()
-            .eq("base_id", base_id)
-            .execute()
-        )
-
-        (
-            supabase.table("bases_csv")
-            .delete()
-            .eq("id", base_id)
-            .execute()
-        )
-
-        flash("Base excluída com sucesso.")
-        return redirect(url_for("bases", area=area))
-
-    except Exception as erro:
-        app.logger.exception("Erro ao excluir base %s", base_id)
-        flash(f"Não foi possível excluir a base: {erro}")
+        flash(f"Não foi possível abrir esta base: {exc}")
         return redirect(url_for("acessos"))
 
 
-@app.route("/base-registro/<int:registro_id>", methods=["GET", "POST"])
+# =========================================================
+# EDIÇÃO DO ACOMPANHAMENTO COMERCIAL
+# =========================================================
+
+@app.route(
+    "/base-registro/<int:registro_id>",
+    methods=["GET", "POST"],
+)
 @exigir_login
 def registro_editar(registro_id):
     try:
-        supabase = cliente_supabase()
+        db = cliente_supabase()
 
-        resultado = (
-            supabase.table("base_registros")
+        resposta = (
+            db.table("base_registros")
             .select("*")
             .eq("id", registro_id)
             .limit(1)
             .execute()
         )
 
-        if not resultado.data:
+        if not resposta.data:
             flash("Registro não encontrado.")
             return redirect(url_for("acessos"))
 
-        registro = resultado.data[0]
-        dados = registro.get("dados") or {}
-
-        if not isinstance(dados, dict):
-            dados = {}
-
-        acompanhamento = dados.get("acompanhamento", {})
-
-        if not isinstance(acompanhamento, dict):
-            acompanhamento = {}
+        registro = resposta.data[0]
+        dados = dict(registro.get("dados") or {})
+        acompanhamento = dict(
+            dados.get("acompanhamento") or {}
+        )
 
         if request.method == "POST":
-            atualizacoes = {
-                campo: request.form.get(campo, "").strip() or None
-                for campo in CAMPOS_COMERCIAIS
-            }
+            for campo in CAMPOS_COMERCIAIS:
+                acompanhamento[campo] = (
+                    request.form.get(campo, "").strip()
+                )
 
-            visitou = request.form.get("visitou", "").strip().lower()
-
-            if visitou in ("sim", "true", "1"):
-                atualizacoes["visitou"] = True
-            elif visitou in ("não", "nao", "false", "0"):
-                atualizacoes["visitou"] = False
-            else:
-                atualizacoes["visitou"] = None
-
-            valor = request.form.get("valor_ultima_compra", "").strip()
+            valor = acompanhamento.get(
+                "valor_ultima_compra",
+                "",
+            )
 
             if valor:
                 try:
-                    normalizado = valor.replace(" ", "")
+                    valor_normalizado = (
+                        str(valor)
+                        .replace("R$", "")
+                        .replace(" ", "")
+                    )
 
-                    if "," in normalizado:
-                        normalizado = (
-                            normalizado.replace(".", "")
+                    if "," in valor_normalizado:
+                        valor_normalizado = (
+                            valor_normalizado
+                            .replace(".", "")
                             .replace(",", ".")
                         )
 
-                    atualizacoes["valor_ultima_compra"] = float(normalizado)
+                    acompanhamento["valor_ultima_compra"] = float(
+                        valor_normalizado
+                    )
 
                 except ValueError:
-                    flash("Valor da última compra inválido.")
+                    flash(
+                        "O valor da última compra não é válido."
+                    )
                     return redirect(
                         url_for(
                             "registro_editar",
-                            registro_id=registro_id
+                            registro_id=registro_id,
                         )
                     )
 
-            atualizacoes["atualizado_em"] = (
-                datetime.now().astimezone().isoformat()
+            else:
+                acompanhamento["valor_ultima_compra"] = ""
+
+            acompanhamento["atualizado_em"] = (
+                datetime.utcnow().isoformat()
             )
 
-            # Salva os campos comerciais dentro de dados,
-            # sem sobrescrever as colunas originais do CSV.
-            dados["acompanhamento"] = atualizacoes
+            # O acompanhamento fica dentro de "dados", preservando
+            # todas as colunas originais do CSV.
+            dados["acompanhamento"] = acompanhamento
 
             (
-                supabase.table("base_registros")
+                db.table("base_registros")
                 .update({"dados": dados})
                 .eq("id", registro_id)
                 .execute()
             )
 
-            flash("Dados comerciais salvos com sucesso.")
+            flash("Acompanhamento comercial salvo.")
 
             return redirect(
                 url_for(
                     "registro_editar",
-                    registro_id=registro_id
+                    registro_id=registro_id,
                 )
             )
 
-        grupos = []
+        empresa = {
+            chave: valor
+            for chave, valor in dados.items()
+            if chave != "acompanhamento"
+        }
 
-        for chave, valor in dados.items():
-            if chave == "acompanhamento":
-                continue
+        if (
+            not empresa.get("cnpj")
+            and registro.get("identificador")
+        ):
+            empresa["cnpj"] = registro["identificador"]
 
-            if isinstance(valor, dict):
-                itens = list(valor.items())
-                if itens:
-                    grupos.append((
-                        chave.replace("_", " ").title(),
-                        itens
-                    ))
-
-            elif isinstance(valor, list):
-                itens = [
-                    (str(i + 1), item)
-                    for i, item in enumerate(valor)
-                ]
-                if itens:
-                    grupos.append((
-                        chave.replace("_", " ").title(),
-                        itens
-                    ))
-
-            else:
-                grupos.append((
-                    chave.replace("_", " ").title(),
-                    [(chave.replace("_", " ").title(), valor)]
-                ))
-
-        return render_template(
-            "empresas_editar.html",
-            empresa=dados,
-            registro=registro,
-            dados=dados,
-            acompanhamento=acompanhamento,
-            grupos=grupos
-        )
-
-    except Exception as erro:
-        app.logger.exception(
-            "Erro ao editar registro %s",
-            registro_id
-        )
-        return f"Erro ao editar registro: {erro}", 500
-
-@app.route("/")
-@exigir_login
-def inicio():
-    q = request.args.get("q", "").strip()
-
-    try:
-        supabase = cliente_supabase()
-        empresas = []
-        tamanho_lote = 1000
-        inicio_lote = 0
-
-        while True:
-            resposta = (
-                supabase
-                .table("empresas")
-                .select("*")
-                .order("atualizado_em", desc=True)
-                .range(inicio_lote, inicio_lote + tamanho_lote - 1)
-                .execute()
-            )
-
-            lote = resposta.data or []
-            empresas.extend(lote)
-
-            if len(lote) < tamanho_lote:
-                break
-
-            inicio_lote += tamanho_lote
-
-
-        if q:
-            termo = q.lower()
-            filtradas = []
-
-            for empresa in empresas:
-                dados = empresa.get("dados") or {}
-
-                texto = " ".join(
-                    [str(empresa.get("cnpj", ""))]
-                    + [str(v) for v in dados.values()]
-                    + [
-                        str(empresa.get(campo, "") or "")
-                        for campo in CAMPOS_COMERCIAIS
-                    ]
-                ).lower()
-
-                if termo in texto:
-                    filtradas.append(empresa)
-
-            empresas = filtradas
-
-        return render_template(
-            "login.html",
-            empresas=empresas,
-            q=q
-        )
-
-    except Exception as erro:
-        return (
-            "Erro ao consultar o Supabase. "
-            "Verifique as configurações e os logs do Render. "
-            f"Detalhe: {str(erro)}",
-            500
-        )
-
-@app.route("/empresa/<cnpj>", methods=["GET", "POST"])
-@exigir_login
-def empresa_editar(cnpj):
-    cnpj = normalizar_cnpj(cnpj)
-
-    try:
-        supabase = cliente_supabase()
-
-        resultado = (
-            supabase.table("empresas")
-            .select("*")
-            .eq("cnpj", cnpj)
-            .limit(1)
-            .execute()
-        )
-
-        if not resultado.data:
-            flash("Empresa não encontrada.")
-            return redirect(url_for("inicio"))
-
-        empresa = resultado.data[0]
-        dados = empresa.get("dados") or {}
-
-        if request.method == "POST":
-            atualizacoes = {}
-
-            for campo in CAMPOS_COMERCIAIS:
-                valor = request.form.get(campo, "").strip()
-                atualizacoes[campo] = valor or None
-
-            atualizacoes["visitou"] = (
-                request.form.get("visitou") == "sim"
-            )
-
-            valor_compra = atualizacoes.get("valor_ultima_compra")
-
-            if valor_compra:
-                try:
-                    valor_compra = valor_compra.replace(",", ".")
-                    atualizacoes["valor_ultima_compra"] = float(valor_compra)
-                except ValueError:
-                    flash("Valor da última compra inválido.")
-                    return redirect(
-                        url_for("empresa_editar", cnpj=cnpj)
-                    )
-
-            atualizacoes["atualizado_em"] = (
-                datetime.now().astimezone().isoformat()
-            )
-
-            (
-                supabase.table("empresas")
-                .update(atualizacoes)
-                .eq("cnpj", cnpj)
-                .execute()
-            )
-
-            flash("Dados comerciais salvos.")
-            return redirect(
-                url_for("empresa_editar", cnpj=cnpj)
-            )
+        grupos = montar_grupos(empresa)
 
         return render_template(
             "empresa_editar.html",
+            registro=registro,
             empresa=empresa,
-            dados=dados
+            dados=empresa,
+            acompanhamento=acompanhamento,
+            grupos=grupos,
         )
 
-    except Exception as erro:
-        return (
-            "Erro ao abrir ou salvar a empresa. "
-            f"Detalhe: {str(erro)}",
-            500
+    except Exception as exc:
+        app.logger.exception("Erro ao editar registro")
+        flash(
+            f"Não foi possível abrir ou salvar o registro: {exc}"
+        )
+        return redirect(url_for("acessos"))
+
+
+# =========================================================
+# EXPORTAÇÃO DA BASE PARA CSV
+# =========================================================
+
+@app.route("/bases/<int:base_id>/exportar")
+@exigir_login
+def exportar_base_csv(base_id):
+    try:
+        base = carregar_base(base_id)
+
+        if not base:
+            flash("Base não encontrada.")
+            return redirect(url_for("acessos"))
+
+        registros = carregar_registros(base_id)
+
+        campos = []
+        linhas = []
+
+        for registro in registros:
+            dados = dict(registro.get("dados") or {})
+
+            # Não exporta o acompanhamento como se fosse uma coluna
+            # original do CSV.
+            dados.pop("acompanhamento", None)
+
+            for campo in dados:
+                if campo not in campos:
+                    campos.append(campo)
+
+            linhas.append(dados)
+
+        if not campos:
+            campos = ["identificador"]
+
+        saida = io.StringIO(newline="")
+
+        escritor = csv.DictWriter(
+            saida,
+            fieldnames=campos,
+            extrasaction="ignore",
         )
 
-@app.route("/importar", methods=["POST"])
+        escritor.writeheader()
+
+        for linha in linhas:
+            escritor.writerow(
+                {
+                    campo: linha.get(campo, "")
+                    for campo in campos
+                }
+            )
+
+        buffer = io.BytesIO(
+            saida.getvalue().encode("utf-8-sig")
+        )
+        buffer.seek(0)
+
+        nome = re.sub(
+            r"[^A-Za-z0-9_-]+",
+            "_",
+            base.get("nome", "base"),
+        )
+
+        return send_file(
+            buffer,
+            mimetype="text/csv; charset=utf-8",
+            as_attachment=True,
+            download_name=f"{nome}.csv",
+        )
+
+    except Exception as exc:
+        app.logger.exception("Erro ao exportar base")
+        flash(f"Não foi possível exportar a base: {exc}")
+        return redirect(url_for("acessos"))
+
+
+# =========================================================
+# EXCLUSÃO DA BASE E DE SEUS REGISTROS
+# =========================================================
+
+@app.route(
+    "/bases/<int:base_id>/excluir",
+    methods=["POST"],
+)
 @exigir_login
-def importar_csv():
-    arquivo = request.files.get("arquivo")
-
-    if not arquivo or not arquivo.filename:
-        flash("Selecione um arquivo CSV.")
-        return redirect(url_for("inicio"))
-
+def excluir_base(base_id):
     try:
-        conteudo = arquivo.read().decode("utf-8-sig", errors="replace")
+        db = cliente_supabase()
+        base = carregar_base(base_id)
 
-        try:
-            dialect = csv.Sniffer().sniff(conteudo[:10000], delimiters=";,\t|")
-        except csv.Error:
-            dialect = csv.excel
-            dialect.delimiter = ";"
+        if not base:
+            flash("Base não encontrada.")
+            return redirect(url_for("acessos"))
 
-        leitor = csv.DictReader(io.StringIO(conteudo), dialect=dialect)
+        area = base.get("area")
 
-        if not leitor.fieldnames:
-            flash("O CSV não possui cabeçalho.")
-            return redirect(url_for("inicio"))
+        if area not in AREAS_CAM:
+            area = "agrolog"
 
-        campos = {
-            str(campo).strip().lower(): campo
-            for campo in leitor.fieldnames
-            if campo
-        }
-
-        campo_cnpj = campos.get("cnpj")
-
-        if not campo_cnpj:
-            flash("O CSV precisa ter uma coluna chamada cnpj.")
-            return redirect(url_for("inicio"))
-
-        supabase = cliente_supabase()
-        lote = []
-        importadas = 0
-
-        for linha in leitor:
-            cnpj = normalizar_cnpj(linha.get(campo_cnpj, ""))
-
-            if not cnpj:
-                continue
-
-            dados = {
-                str(chave).strip(): valor
-                for chave, valor in linha.items()
-                if chave and chave != campo_cnpj
-            }
-
-            lote.append({
-                "cnpj": cnpj,
-                "dados": dados,
-                "atualizado_em": datetime.now().astimezone().isoformat()
-            })
-
-            if len(lote) >= 100:
-                supabase.table("empresas").upsert(
-                    lote, on_conflict="cnpj"
-                ).execute()
-                importadas += len(lote)
-                lote = []
-
-        if lote:
-            supabase.table("empresas").upsert(
-                lote, on_conflict="cnpj"
-            ).execute()
-            importadas += len(lote)
-
-        flash(f"Importação concluída. Registros processados: {importadas}.")
-
-    except Exception as erro:
-        flash(f"Erro na importação: {str(erro)}")
-
-    return redirect(url_for("inicio"))
-
-
-@app.route("/exportar")
-@exigir_login
-def exportar_csv():
-    try:
-        resposta = (
-            cliente_supabase()
-            .table("empresas")
-            .select("*")
-            .limit(10000)
+        # Primeiro exclui os registros vinculados à base.
+        (
+            db.table("base_registros")
+            .delete()
+            .eq("base_id", base_id)
             .execute()
         )
 
-        empresas = resposta.data or []
-        saida = io.StringIO(newline="")
-        campos_dados = sorted({
-            campo
-            for empresa in empresas
-            for campo in (empresa.get("dados") or {}).keys()
-        })
-
-        campos = ["cnpj"] + campos_dados + CAMPOS_COMERCIAIS
-        escritor = csv.DictWriter(
-            saida,
-            fieldnames=list(dict.fromkeys(campos)),
-            delimiter=";"
-        )
-        escritor.writeheader()
-
-        for empresa in empresas:
-            linha = {"cnpj": empresa.get("cnpj", "")}
-            linha.update(empresa.get("dados") or {})
-
-            for campo in CAMPOS_COMERCIAIS:
-                linha[campo] = empresa.get(campo, "")
-
-            linha["visitou"] = (
-                "Sim" if empresa.get("visitou") else "Não"
-            )
-            escritor.writerow(linha)
-
-        memoria = io.BytesIO(saida.getvalue().encode("utf-8-sig"))
-        memoria.seek(0)
-
-        return send_file(
-            memoria,
-            mimetype="text/csv; charset=utf-8",
-            as_attachment=True,
-            download_name="cam_agrolog_empresas.csv"
+        # Depois exclui a base.
+        (
+            db.table("bases_csv")
+            .delete()
+            .eq("id", base_id)
+            .execute()
         )
 
-    except Exception as erro:
-        return f"Erro ao exportar CSV: {str(erro)}", 500
+        flash("Base e registros excluídos.")
 
+        return redirect(url_for("bases", area=area))
+
+    except Exception as exc:
+        app.logger.exception("Erro ao excluir base")
+        flash(f"Não foi possível excluir a base: {exc}")
+        return redirect(url_for("acessos"))
+
+
+# =========================================================
+# COMPATIBILIDADE COM O LINK ANTIGO
+# =========================================================
+
+@app.route("/inicio")
+@exigir_login
+def inicio():
+    return redirect(url_for("acessos"))
+
+
+# =========================================================
+# EXECUÇÃO LOCAL
+# =========================================================
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "5000")),
+        debug=os.getenv("FLASK_DEBUG") == "1",
+    )
