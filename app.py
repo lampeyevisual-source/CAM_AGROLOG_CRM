@@ -433,7 +433,7 @@ def bases(area):
                 base["total_registros"] = 0
 
         return render_template(
-            "base.html",
+            "bases.html",
             area=AREAS_CAM[area],
             chave_area=area,
             lista_bases=lista_bases,
