@@ -96,17 +96,35 @@ def carregar_base(base_id):
 
 
 def carregar_registros(base_id, limite=10000):
-    resposta = (
-        cliente_supabase()
-        .table("base_registros")
-        .select("*")
-        .eq("base_id", base_id)
-        .order("id")
-        .limit(limite)
-        .execute()
-    )
+    db = cliente_supabase()
+    registros = []
+    inicio = 0
+    tamanho_pagina = 1000
 
-    return resposta.data or []
+    while inicio < limite:
+        quantidade = min(tamanho_pagina, limite - inicio)
+
+        resposta = (
+            db.table("base_registros")
+            .select("*")
+            .eq("base_id", base_id)
+            .order("id")
+            .range(inicio, inicio + quantidade - 1)
+            .execute()
+        )
+
+        lote = resposta.data or []
+
+        if not lote:
+            break
+
+        registros.extend(lote)
+        inicio += len(lote)
+
+        if len(lote) < quantidade:
+            break
+
+    return registros
 
 
 # =========================================================
