@@ -683,13 +683,22 @@ def base_detalhe(base_id):
                 continue
 
             filtrados.append(registro)
-
         total_filtrado = len(filtrados)
+
+        app.logger.warning(
+            "PAGINACAO | base=%s | total_original=%s | "
+            "total_filtrado=%s | pagina_solicitada=%s | por_pagina=%s",
+            base_id,
+            len(originais),
+            total_filtrado,
+            pagina,
+            por_pagina,
+        )
+
         total_paginas = max(
             1,
             (total_filtrado + por_pagina - 1) // por_pagina
         )
-
         pagina = min(pagina, total_paginas)
 
         inicio = (pagina - 1) * por_pagina
