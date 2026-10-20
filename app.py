@@ -95,14 +95,20 @@ def carregar_base(base_id):
     return resposta.data[0] if resposta.data else None
 
 
-def carregar_registros(base_id, limite=10000):
+def carregar_registros(base_id, limite=None):
     db = cliente_supabase()
     registros = []
     inicio = 0
     tamanho_pagina = 1000
 
-    while inicio < limite:
-        quantidade = min(tamanho_pagina, limite - inicio)
+    while limite is None or inicio < limite:
+        quantidade = tamanho_pagina
+
+        if limite is not None:
+            quantidade = min(tamanho_pagina, limite - inicio)
+
+        if quantidade <= 0:
+            break
 
         resposta = (
             db.table("base_registros")
@@ -125,7 +131,6 @@ def carregar_registros(base_id, limite=10000):
             break
 
     return registros
-
 
 # =========================================================
 # LEITURA E TRATAMENTO DO CSV
@@ -572,43 +577,143 @@ def base_detalhe(base_id):
             flash("Base não encontrada.")
             return redirect(url_for("acessos"))
 
-        registros_originais = carregar_registros(base_id)
+        # Pesquisa e filtros enviados pela página.
         q = request.args.get("q", "").strip().lower()
+        ddds = request.args.getlist("ddd")
+        ufs = request.args.getlist("uf")
+        cidades = request.args.getlist("cidade")
+        bairros = request.args.getlist("bairro")
+        ceps = request.args.getlist("cep")
 
-        registros = []
+        try:
+            pagina = max(1, int(request.args.get("page", 1)))
+        except (TypeError, ValueError):
+            pagina = 1
 
-        for original in registros_originais:
+        try:
+            por_pagina = int(request.args.get("per_page", 100))
+        except (TypeError, ValueError):
+            por_pagina = 100
+
+        if por_pagina not in (25, 50, 100, 200):
+            por_pagina = 100
+
+        # Busca a base completa. A paginação será feita antes
+        # de enviar os registros ao navegador.
+        originais = carregar_registros(base_id)
+
+        registros_completos = []
+        opcoes = {
+            "ddd": set(),
+            "uf": set(),
+            "cidade": set(),
+            "bairro": set(),
+            "cep": set(),
+        }
+
+        for original in originais:
             registro = dict(original)
             dados = dict(registro.get("dados") or {})
-
             acompanhamento = dados.pop("acompanhamento", {}) or {}
+
             registro["dados"] = dados
 
             for campo in CAMPOS_COMERCIAIS:
                 registro[campo] = acompanhamento.get(campo, "")
 
+            registros_completos.append(registro)
+
+            valores = {
+                "ddd": dados.get("ddd_1", ""),
+                "uf": dados.get("uf", ""),
+                "cidade": dados.get("municipio", "") or dados.get("codigo_municipio", ""),
+                "bairro": dados.get("bairro", ""),
+                "cep": dados.get("cep", ""),
+            }
+
+            for campo, valor in valores.items():
+                valor = str(valor or "").strip()
+                if valor:
+                    opcoes[campo].add(valor)
+
+        # Cria as opções a partir da base inteira, não apenas
+        # dos registros exibidos na página.
+        filtros_opcoes = {
+            campo: sorted(valores, key=str.casefold)
+            for campo, valores in opcoes.items()
+        }
+
+        filtrados = []
+
+        for registro in registros_completos:
+            dados = registro["dados"]
+
+            # Pesquisa textual global: identificador, nomes dos
+            # campos e valores de todas as colunas importadas.
             if q:
-                partes = [
-                    str(registro.get("identificador", "")),
-                ]
+                partes = [str(registro.get("identificador", ""))]
 
                 for chave, valor in dados.items():
-                    partes.append(str(chave))
-                    partes.append(str(valor))
+                    partes.extend([str(chave), str(valor)])
 
-                texto = " ".join(partes).lower()
-
-                if q not in texto:
+                if q not in " ".join(partes).lower():
                     continue
 
-            registros.append(registro)
+            valores_registro = {
+                "ddd": str(dados.get("ddd_1", "") or "").strip(),
+                "uf": str(dados.get("uf", "") or "").strip(),
+                "cidade": str(
+                    dados.get("municipio", "")
+                    or dados.get("codigo_municipio", "")
+                    or ""
+                ).strip(),
+                "bairro": str(dados.get("bairro", "") or "").strip(),
+                "cep": str(dados.get("cep", "") or "").strip(),
+            }
+
+            if ddds and valores_registro["ddd"] not in ddds:
+                continue
+            if ufs and valores_registro["uf"] not in ufs:
+                continue
+            if cidades and valores_registro["cidade"] not in cidades:
+                continue
+            if bairros and valores_registro["bairro"] not in bairros:
+                continue
+            if ceps and valores_registro["cep"] not in ceps:
+                continue
+
+            filtrados.append(registro)
+
+        total_filtrado = len(filtrados)
+        total_paginas = max(
+            1,
+            (total_filtrado + por_pagina - 1) // por_pagina
+        )
+
+        pagina = min(pagina, total_paginas)
+
+        inicio = (pagina - 1) * por_pagina
+        fim = inicio + por_pagina
+
+        registros_pagina = filtrados[inicio:fim]
 
         return render_template(
             "base_detalhe.html",
             base=base,
             areas=AREAS_CAM,
-            registros=registros,
+            registros=registros_pagina,
             q=q,
+            filtros_opcoes=filtros_opcoes,
+            ddds_selecionados=ddds,
+            ufs_selecionadas=ufs,
+            cidades_selecionadas=cidades,
+            bairros_selecionados=bairros,
+            ceps_selecionados=ceps,
+            total_registros=len(originais),
+            total_filtrado=total_filtrado,
+            pagina_atual=pagina,
+            total_paginas=total_paginas,
+            por_pagina=por_pagina,
         )
 
     except Exception as exc:
