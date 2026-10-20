@@ -445,7 +445,7 @@ def bases(area):
         flash(f"Não foi possível carregar as bases: {exc}")
 
         return render_template(
-            "base.html",
+            "bases.html",
             area=AREAS_CAM[area],
             chave_area=area,
             lista_bases=[],
@@ -544,7 +544,7 @@ def importar_base(area):
 # DETALHES DA BASE
 # =========================================================
 
-@app.route("/base/<int:base_id>")
+@app.route("/base/<base_id>")
 @exigir_login
 def base_detalhe(base_id):
     try:
@@ -733,7 +733,7 @@ def registro_editar(registro_id):
 # EXPORTAÇÃO DA BASE PARA CSV
 # =========================================================
 
-@app.route("/bases/<int:base_id>/exportar")
+@app.route("/bases/<base_id>/exportar")
 @exigir_login
 def exportar_base_csv(base_id):
     try:
@@ -811,7 +811,7 @@ def exportar_base_csv(base_id):
 # =========================================================
 
 @app.route(
-    "/bases/<int:base_id>/excluir",
+    "/bases/<base_id>/excluir",
     methods=["POST"],
 )
 @exigir_login
