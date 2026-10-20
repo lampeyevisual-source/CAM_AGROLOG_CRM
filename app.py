@@ -20,8 +20,10 @@ from supabase import create_client
 
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "troque-esta-chave-no-render")
+app.secret_key = os.getenv("SECRET_KEY")
 
+if not app.secret_key:
+    raise RuntimeError("Configure SECRET_KEY nas variáveis de ambiente.")
 
 CAMPOS_COMERCIAIS = [
     "status_comercial",
@@ -562,11 +564,6 @@ def importar_base(area):
         flash(f"Falha ao importar o CSV: {exc}")
         return redirect(url_for("bases", area=area))
 
-
-# =========================================================
-# DETALHES DA BASE
-# =========================================================
-
 @app.route("/base/<base_id>")
 @exigir_login
 def base_detalhe(base_id):
@@ -577,13 +574,20 @@ def base_detalhe(base_id):
             flash("Base não encontrada.")
             return redirect(url_for("acessos"))
 
-        # Pesquisa e filtros enviados pela página.
         q = request.args.get("q", "").strip().lower()
-        ddds = request.args.getlist("ddd")
-        ufs = request.args.getlist("uf")
-        cidades = request.args.getlist("cidade")
-        bairros = request.args.getlist("bairro")
-        ceps = request.args.getlist("cep")
+
+        def obter_filtros(nome):
+            return [
+                valor.strip()
+                for valor in request.args.getlist(nome)
+                if valor and valor.strip()
+            ]
+
+        ddds = obter_filtros("ddd")
+        ufs = obter_filtros("uf")
+        cidades = obter_filtros("cidade")
+        bairros = obter_filtros("bairro")
+        ceps = obter_filtros("cep")
 
         try:
             pagina = max(1, int(request.args.get("page", 1)))
@@ -598,8 +602,6 @@ def base_detalhe(base_id):
         if por_pagina not in (25, 50, 100, 200):
             por_pagina = 100
 
-        # Busca a base completa. A paginação será feita antes
-        # de enviar os registros ao navegador.
         originais = carregar_registros(base_id)
 
         registros_completos = []
@@ -636,8 +638,6 @@ def base_detalhe(base_id):
                 if valor:
                     opcoes[campo].add(valor)
 
-        # Cria as opções a partir da base inteira, não apenas
-        # dos registros exibidos na página.
         filtros_opcoes = {
             campo: sorted(valores, key=str.casefold)
             for campo, valores in opcoes.items()
@@ -648,8 +648,6 @@ def base_detalhe(base_id):
         for registro in registros_completos:
             dados = registro["dados"]
 
-            # Pesquisa textual global: identificador, nomes dos
-            # campos e valores de todas as colunas importadas.
             if q:
                 partes = [str(registro.get("identificador", ""))]
 
@@ -673,38 +671,43 @@ def base_detalhe(base_id):
 
             if ddds and valores_registro["ddd"] not in ddds:
                 continue
+
             if ufs and valores_registro["uf"] not in ufs:
                 continue
+
             if cidades and valores_registro["cidade"] not in cidades:
                 continue
+
             if bairros and valores_registro["bairro"] not in bairros:
                 continue
+
             if ceps and valores_registro["cep"] not in ceps:
                 continue
 
             filtrados.append(registro)
-        total_filtrado = len(filtrados)
 
-        app.logger.warning(
-            "PAGINACAO | base=%s | total_original=%s | "
-            "total_filtrado=%s | pagina_solicitada=%s | por_pagina=%s",
-            base_id,
-            len(originais),
-            total_filtrado,
-            pagina,
-            por_pagina,
-        )
+        total_filtrado = len(filtrados)
 
         total_paginas = max(
             1,
             (total_filtrado + por_pagina - 1) // por_pagina
         )
+
         pagina = min(pagina, total_paginas)
 
         inicio = (pagina - 1) * por_pagina
         fim = inicio + por_pagina
 
         registros_pagina = filtrados[inicio:fim]
+
+        app.logger.warning(
+            "PAGINACAO | base=%s | total_original=%s | total_filtrado=%s | pagina=%s | por_pagina=%s",
+            base_id,
+            len(originais),
+            total_filtrado,
+            pagina,
+            por_pagina,
+        )
 
         return render_template(
             "base_detalhe.html",
@@ -729,8 +732,7 @@ def base_detalhe(base_id):
         app.logger.exception("Erro ao abrir detalhes da base")
         flash(f"Não foi possível abrir esta base: {exc}")
         return redirect(url_for("acessos"))
-
-
+    
 # =========================================================
 # EDIÇÃO DO ACOMPANHAMENTO COMERCIAL
 # =========================================================
